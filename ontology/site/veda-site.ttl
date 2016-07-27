@@ -1,0 +1,139 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix v-fs: <http://semantic-machines.com/veda/veda-search/> .
+@prefix v-s: <http://semantic-machines.com/veda/veda-schema/> .
+@prefix v-ui: <http://semantic-machines.com/veda/veda-ui/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix site: <http://semantic-machines.com/veda/veda-site/> .
+
+<http://semantic-machines.com/veda/veda-site>
+  rdf:type owl:Ontology ;
+  rdfs:label "Veda system site ontology"@en ;
+  rdfs:label "Онтология сайта системы Veda"@ru ;
+#  owl:versionInfo "1.3" ;
+  v-s:loadPriority 9 ;
+.
+
+v-s:veda-site
+  rdf:type v-s:TTLFile ;
+  rdfs:label "Veda system site ontology"@en ;
+  rdfs:label "Онтология сайта системы Veda"@ru ;
+  v-s:loadPriority 9 ;
+.
+
+### CLASSES ####
+
+site:Site
+  rdf:type owl:Class ;
+  rdfs:subClassOf owl:Thing ;
+  rdfs:label "Сайт"@ru ;
+  rdfs:label "Site"@en ;
+.
+
+site:Page
+  rdf:type owl:Class ;
+  rdfs:subClassOf owl:Thing ;
+  rdfs:label "Страница"@ru ;
+  rdfs:label "Page"@en ;
+.
+
+site:Section
+  rdf:type owl:Class ;
+  rdfs:subClassOf owl:Thing ;
+  rdfs:label "Раздел"@ru ;
+  rdfs:label "Section"@en ;
+.
+
+site:Article
+  rdf:type owl:Class ;
+  rdfs:subClassOf owl:Thing ;
+  rdfs:label "Статья"@ru ;
+  rdfs:label "Article"@en ;
+.
+
+site:Comment
+  rdf:type owl:Class ;
+  rdfs:subClassOf owl:Thing ;
+  rdfs:label "Комментарий"@ru ;
+  rdfs:label "Comment"@en ;
+.
+
+site:Category
+  rdf:type owl:Class ;
+  rdfs:subClassOf owl:Thing ;
+  rdfs:label "Категория"@ru ;
+  rdfs:label "Category"@en ;
+.
+
+### PROPERTIES ###
+
+site:url
+  rdf:type owl:DatatypeProperty ;
+  rdfs:domain site:Site ;
+  rdfs:label "URL" ;
+  rdfs:range xsd:string ;
+.
+
+site:hasSection
+  rdf:type owl:ObjectProperty ;
+  rdfs:domain site:Article ;
+  rdfs:label "Section"@en ;
+  rdfs:label "Раздел"@ru ;
+  rdfs:range site:Section ;
+.
+
+site:hasCategory
+  rdf:type owl:ObjectProperty ;
+  rdfs:domain site:Article ;
+  rdfs:label "Category"@en ;
+  rdfs:label "Категория"@ru ;
+  rdfs:range site:Category ;
+.
+
+site:hasArticle
+  rdf:type owl:ObjectProperty ;
+  rdfs:domain site:Section ;
+  rdfs:label "article"@en ;
+  rdfs:label "статья"@ru ;
+  rdfs:range site:Section ;
+.
+
+site:heading
+  rdf:type owl:DatatypeProperty ;
+  rdfs:domain site:Article ;
+  rdfs:label "Heading"@en ;
+  rdfs:label "Заголовок"@ru ;
+  rdfs:range xsd:string ;
+.
+
+site:summary
+  rdf:type owl:DatatypeProperty ;
+  rdfs:domain site:Article ;
+  rdfs:label "Summary"@en ;
+  rdfs:label "Резюме"@ru ;
+  rdfs:range xsd:string ;
+.
+
+### TEMPLATES ###
+
+### SECURITY ###
+
+site:SiteAdmin
+  rdf:type v-s:Group ;
+  rdfs:label "Группа администраторов сайта"@ru ;
+  rdfs:label "Site admin group"@en ;
+.
+
+site:SiteAdminPermission
+  rdf:type v-s:PermissionStatement ;
+  rdfs:label "Полномочия группы администраторов сайта"@ru ;
+  rdfs:label "Site admin group permissions"@en ;
+  v-s:permissionSubject site:SiteAdmin ;
+  v-s:permissionObject site:Page, site:Section, site:Article, site:Category, site:Comment ;
+  v-s:permissionObject site:Page_group, site:Section_group, site:Article_group, site:Category_group ;
+  v-s:canCreate "true"^^xsd:boolean ;
+  v-s:canRead "true"^^xsd:boolean ;
+  v-s:canUpdate "true"^^xsd:boolean ;
+  v-s:canDelete "true"^^xsd:boolean ;
+.
