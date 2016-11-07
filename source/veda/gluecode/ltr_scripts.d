@@ -173,6 +173,10 @@ private void ltrs_thread(string parent_url)
                                        writeln("ltrs:Queue not open :", queue);
                                }
                            },
+						   (OwnerTerminated ot) 
+		                   {
+	                        return;
+		                   },                                 
                            (Variant v) { writeln("ltrs_thread::Received some other type.", v); });
             // обработка элементов очередей согласно приоритетам
             yield();
@@ -352,7 +356,6 @@ class ScriptProcess : VedaModule
             return ResultCode.OK;
 
         string queue_id = randomUUID().toString();
-
         context.unload_subject_storage(queue_id);
 
         start_script(new_bin, queue_id);

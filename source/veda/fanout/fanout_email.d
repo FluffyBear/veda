@@ -37,15 +37,18 @@ class FanoutProcess : VedaModule
                                 string event_id,
                                 long op_id)
     {
-        bool res;
+        ResultCode res;
 
         try
         {
             if (smtp_conn !is null)
             {
                 res = push_to_smtp(prev_indv, new_indv);
-                if (res == false)
+                if (res == ResultCode.Connect_Error)
+                {
                     connect_to_smtp(context);
+                    return ResultCode.Connect_Error;
+                }    
             }
         }
         catch (Throwable ex)
@@ -53,7 +56,7 @@ class FanoutProcess : VedaModule
             log.trace("ERR! LINE:[%s], FILE:[%s], MSG:[%s]", __LINE__, __FILE__, ex.msg);
         }
 
-        if (res == true)
+        if (res == ResultCode.OK)
         {
             committed_op_id = op_id;
             return ResultCode.OK;
@@ -186,7 +189,7 @@ class FanoutProcess : VedaModule
         return cast(string)src;
     }
 
-    private bool push_to_smtp(ref Individual prev_indv, ref Individual new_indv)
+    private ResultCode push_to_smtp(ref Individual prev_indv, ref Individual new_indv)
     {
         SmtpMessage message;
 
@@ -202,11 +205,11 @@ class FanoutProcess : VedaModule
             string previousVersion_new  = new_indv.getFirstLiteral("v-s:previousVersion");
 
             if (isDraftOf !is null)
-                return true;
+                return ResultCode.OK;
 
             if (is_deleted == false && (actualVersion !is null && actualVersion != new_indv.uri ||
                                         (previousVersion_prev !is null && previousVersion_prev == previousVersion_new)))
-                return true;
+                return ResultCode.OK;
 
             Resources types        = new_indv.getResources("rdf:type");
             bool      need_prepare = false;
@@ -221,111 +224,115 @@ class FanoutProcess : VedaModule
             }
 
 
-            if (need_prepare)
+            if (!need_prepare)
+                return ResultCode.OK;
+
+			ResultCode rc;
+            bool is_send = false;
+
+            log.trace("push_to_smtp[%s]: start prepare", new_indv.uri);
+
+            if (is_deleted == false)
             {
-                log.trace("send email: prepare %s", new_indv.uri);
-                bool is_send = false;
+                string from         = new_indv.getFirstLiteral("v-wf:from");
+                string to           = new_indv.getFirstLiteral("v-wf:to");
+                string subject      = new_indv.getFirstLiteral("v-s:subject");
+                string reply_to     = new_indv.getFirstLiteral("v-wf:replyTo");
+                string message_body = new_indv.getFirstLiteral("v-s:messageBody");
 
-                if (is_deleted == false)
+                if (from !is null && to !is null)
                 {
-                    string from         = new_indv.getFirstLiteral("v-wf:from");
-                    string to           = new_indv.getFirstLiteral("v-wf:to");
-                    string subject      = new_indv.getFirstLiteral("v-s:subject");
-                    string reply_to     = new_indv.getFirstLiteral("v-wf:replyTo");
-                    string message_body = new_indv.getFirstLiteral("v-s:messageBody");
+                    string email_from     = extract_email(sticket, from).getFirstString();
+                    string email_to       = extract_email(sticket, to).getFirstString();
+                    string email_reply_to = extract_email(sticket, reply_to).getFirstString();
 
-                    if (from !is null && to !is null)
+                    if (from.length > 0 && to.length > 0)
                     {
-                        string email_from     = extract_email(sticket, from).getFirstString();
-                        string email_to       = extract_email(sticket, to).getFirstString();
-                        string email_reply_to = extract_email(sticket, reply_to).getFirstString();
+                        string[] attachment_ids;
+                        message_body = extract_cids(message_body, attachment_ids);
 
-                        if (from.length > 0 && to.length > 0)
+                        message = SmtpMessage(
+                                              Recipient(email_from, "From"),
+                                              [ Recipient(email_to, "To") ],
+                                              subject,
+                                              message_body,
+                                              email_reply_to
+                                              );
+
+                        foreach (attachment_id; attachment_ids)
                         {
-                            string[] attachment_ids;
-                            message_body = extract_cids(message_body, attachment_ids);
-
-                            message = SmtpMessage(
-                                                  Recipient(email_from, "From"),
-                                                  [ Recipient(email_to, "To") ],
-                                                  subject,
-                                                  message_body,
-                                                  email_reply_to
-                                                  );
-
-                            foreach (attachment_id; attachment_ids)
+                            try
                             {
-                                try
+                                //writeln("@1 attachment_id=", attachment_ids);
+                                Individual file_info = context.get_individual(&sticket, attachment_id);
+                                if (file_info !is Individual.init)
                                 {
-                                    //writeln("@1 attachment_id=", attachment_ids);
-                                    Individual file_info = context.get_individual(&sticket, attachment_id);
-                                    if (file_info !is Individual.init)
+                                    string path     = file_info.getFirstResource("v-s:filePath").get!string;
+                                    string file_uri = file_info.getFirstResource("v-s:fileUri").get!string;
+                                    if (path !is null && file_uri !is null && file_uri.length > 0)
                                     {
-                                        string path     = file_info.getFirstResource("v-s:filePath").get!string;
-                                        string file_uri = file_info.getFirstResource("v-s:fileUri").get!string;
-                                        if (path !is null && file_uri !is null && file_uri.length > 0)
-                                        {
-                                            if (path.length > 0)
-                                                path = path ~ "/";
+                                        if (path.length > 0)
+                                            path = path ~ "/";
 
-                                            string full_path = attachments_db_path ~ "/" ~ path ~ file_uri;
+                                        string full_path = attachments_db_path ~ "/" ~ path ~ file_uri;
 
-                                            auto   bytes = cast(ubyte[]) read(full_path);
+                                        auto   bytes = cast(ubyte[]) read(full_path);
 
-                                            auto   attachment = SmtpAttachment(file_uri, bytes, uri_2_cid(attachment_id));
-                                            message.attach(attachment);
-                                        }
+                                        auto   attachment = SmtpAttachment(file_uri, bytes, uri_2_cid(attachment_id));
+                                        message.attach(attachment);
                                     }
                                 }
-                                catch (Exception ex)
-                                {
-                                    log.trace("#EX! fail prepare attachment for e-mail [%s], LINE:[%s], FILE:[%s], MSG:[%s]", new_indv.uri, ex.line,
-                                              ex.file,
-                                              ex.msg);
-                                }
                             }
-
-                            SmtpReply res = smtp_conn.send(message);
-                            log.trace("send email: %s, %s, %s, result %s", new_indv.uri, message.sender, message.recipients, res);
-                            if (!res.success || res.code == 451)
+                            catch (Exception ex)
                             {
-                                is_send = false;
+                                log.trace("#EX! fail prepare attachment for e-mail [%s], LINE:[%s], FILE:[%s], MSG:[%s]", new_indv.uri, ex.line,
+                                          ex.file,
+                                          ex.msg);
                             }
-                            else
-                            {
-                                is_send = true;
-                                new_indv.addResource("v-s:isSuccess", Resource(true));
-                            }
+                        }
 
-                            new_indv.addResource("v-s:infoOfExecuting", Resource(text(res)));
-                            new_indv.addResource("v-s:created", Resource(DataType.Datetime, Clock.currTime().toUnixTime()));
-                            new_indv.addResource("rdfs:label", Resource("email, from:" ~ email_from ~ ", to:" ~ email_to));
-                            //context.put_individual(&sticket, new_indv.uri, new_indv, false, "fanout");
+                        SmtpReply res = smtp_conn.send(message);
+                        log.trace("push_to_smtp: %s, %s, %s, result.msg=%s result.code=%d", new_indv.uri, message.sender, message.recipients,
+                                  res.message,
+                                  res.code);
+                        if (!res.success || res.code == 451)
+                        {
+                            is_send = false;
+                            rc = ResultCode.Connect_Error;
                         }
                         else
                         {
-                            log.trace("WARN: send email[%s]: fail extract_email from field from[%s] or to[%s]", new_indv.uri, from, to);
+                        	rc = ResultCode.OK;
+                            is_send = true;
+                            new_indv.addResource("v-s:isSuccess", Resource(true));
                         }
+
+                        new_indv.addResource("v-s:infoOfExecuting", Resource(text(res)));
+                        new_indv.addResource("v-s:created", Resource(DataType.Datetime, Clock.currTime().toUnixTime()));
+                        new_indv.addResource("rdfs:label", Resource("email, from:" ~ email_from ~ ", to:" ~ email_to));
+                        //context.put_individual(&sticket, new_indv.uri, new_indv, false, "fanout");
                     }
                     else
                     {
-                        log.trace("WARN: send email[%s]: invalid field from[%s] or to[%s]", new_indv.uri, from, to);
+                        log.trace("WARN: push_to_smtp[%s]: fail extract_email from field from[%s] or to[%s]", new_indv.uri, from, to);
                     }
                 }
-
-                if (is_send == false)
-                    log.trace("WARN: send email: email not prepared, %s", new_indv);
+                else
+                {
+                    log.trace("WARN: push_to_smtp[%s]: invalid field from[%s] or to[%s]", new_indv.uri, from, to);
+                }
             }
+
+            if (is_send == false)
+                log.trace("WARN: push_to_smtp[%s]: not send", new_indv.uri);
+
+            return rc;
         }
         catch (Throwable ex)
         {
-            log.trace("#EX! fail send e-mail[%s]=%s", ex.msg, message.toString());
-            return false;
+            log.trace("ERR! push_to_smtp[%s], \n%s", new_indv.uri, ex.info);
+            return ResultCode.Internal_Server_Error;
         }
-
-        //writeln("@@fanout indv.uri=", indv.uri);
-        // sender.quit();
-        return true;
     }
 
     private void connect_to_smtp(Context context)
@@ -391,7 +398,7 @@ class FanoutProcess : VedaModule
                         catch (Throwable ex)
                         {
                             smtp_conn = null;
-                            log.trace("EX! fanout.connect_to_smtp# LINE:[%s], FILE:[%s], MSG:[%s], connection=[%s]", ex.line, ex.file, ex.msg,
+                            log.trace("ERR! fanout.connect_to_smtp# LINE:[%s], FILE:[%s], MSG:[%s], connection=[%s]", ex.line, ex.file, ex.msg,
                                       connection);
                         }
                     }

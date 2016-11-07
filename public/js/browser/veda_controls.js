@@ -53,13 +53,12 @@
     });
 
     if (isSingle) {
-      var prev;
       input.keyup( function (e) {
         individual.off("individual:propertyModified", singleValueHandler);
         if (e.which !== 188 && e.which !== 190 && e.which !== 110 ) {
-          if (this.value !== prev) {
-            prev = this.value;
-            input.change();
+          if (this.value !== $(this).data("previousValue")) {
+            $(this).data("previousValue", this.value);
+            $(this).change();
           }
         }
         individual.on("individual:propertyModified", singleValueHandler);
@@ -423,8 +422,7 @@
       individual = opts.individual,
       property_uri = opts.property_uri,
       spec = opts.spec,
-      placeholder = spec && spec.hasValue("v-ui:placeholder") ? spec["v-ui:placeholder"][0] : "",
-      control;
+      placeholder = spec && spec.hasValue("v-ui:placeholder") ? spec["v-ui:placeholder"][0] : "";
 
     Object.keys(veda.user.language).map(function (language_name) {
       var localedInput = inputTemplate.clone();
@@ -474,19 +472,21 @@
     });
 
     input.keyup( function (e) {
+      individual.off("individual:propertyModified", handler);
       if (e.which !== 188 && e.which !== 190 && e.which !== 110 ) {
-        if (this.value !== this.previousValue) {
-          this.previousValue = this.value;
+        if (this.value !== $(this).data("previousValue")) {
+          $(this).data("previousValue", this.value);
           $(this).change();
         }
       }
+      individual.on("individual:propertyModified", handler);
     });
 
-    this.on("veda_focus", function (e, val) {
+    this.on("veda_focus", function (e, value) {
       input.each(function () {
         // Set string language to default if undefined
-        if ( !val.language ) { val.language = veda.user.defaultLanguage; }
-        if ( val.language === this.lang ) { $(this).trigger("focus"); }
+        if ( !value.language ) { value.language = veda.user.defaultLanguage; }
+        if ( value.language === this.lang ) { $(this).trigger("focus"); }
       });
       e.stopPropagation();
     });
@@ -503,7 +503,7 @@
       if ( !value.language ) { value.language = veda.user.defaultLanguage; }
       input.each(function () {
         if (value.language === this.lang) {
-          this.value = value;
+          this.value = value.toString();
         }
       });
     }
@@ -1330,21 +1330,26 @@
           select(newVal);
         }
       });
+
+      // Hide create button for single value relations if value exists
+      if (isSingle) {
+        var singleValueHandler = function (modified_rel_uri, values) {
+          if (modified_rel_uri === rel_uri) {
+            if (values.length) {
+              create.hide();
+            } else {
+              create.show();
+            }
+          }
+        };
+        individual.on("individual:propertyModified", singleValueHandler);
+        create.one("remove", function () {
+          individual.off("individual:propertyModified", singleValueHandler);
+        });
+      }
+
     } else {
       create.remove();
-    }
-
-    // Dropdown feature
-    if ( (this.hasClass("dropdown") || this.hasClass("full")) && queryPrefix ) {
-      dropdown.click(function () {
-        var minLength = typeAhead.data().ttTypeahead.minLength;
-        typeAhead.data().ttTypeahead.minLength = 0;
-        typeAhead.data().ttTypeahead.input.trigger("queryChanged", "");
-        typeAhead.focus();
-        typeAhead.data().ttTypeahead.minLength = minLength;
-      });
-    } else {
-      dropdown.remove();
     }
 
     // Tree feature
@@ -1474,6 +1479,19 @@
 
     } else {
       fulltext.remove();
+    }
+
+    // Dropdown feature
+    if ( (this.hasClass("dropdown") || this.hasClass("full")) && queryPrefix ) {
+      dropdown.click(function () {
+        var minLength = typeAhead.data().ttTypeahead.minLength;
+        typeAhead.data().ttTypeahead.minLength = 0;
+        typeAhead.data().ttTypeahead.input.trigger("queryChanged", "");
+        typeAhead.focus();
+        typeAhead.data().ttTypeahead.minLength = minLength;
+      });
+    } else {
+      dropdown.remove();
     }
 
     // Search modal feature

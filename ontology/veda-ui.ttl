@@ -450,7 +450,7 @@ v-ui:SystemPropertiesTemplate
   rdfs:label "Template with system properties"@en ;
   v-ui:template """
 <div>
-  <h4 about="v-s:SystemProperties" property="rdfs:label"></h4>
+  <h3 about="v-s:SystemProperties" property="rdfs:label"></h3>
   <div class="row">
     <div class="col-md-3 col-xs-6">
       <em about="v-s:creator" property="rdfs:label"></em>
@@ -493,7 +493,7 @@ v-ui:VersionedTemplate
   rdfs:label "Template for versions display"@en ;
   v-ui:template """
 <div>
-  <h4 about="v-s:Versions" property="rdfs:label"></h4>
+  <h3 about="v-s:Versions" property="rdfs:label"></h3>
   <div class="panel panel-default">
     <table class="table table-condensed">
       <thead>
@@ -581,27 +581,29 @@ v-ui:LinkTemplate
   rdfs:label "Template with link"@en ;
   v-ui:template """
 <div>
-  <!--h4 about="v-s:hasLink" property="rdfs:label"></h4>
-  <veda-control data-type="link" rel="v-s:hasLink" class="-view edit search create"></veda-control>
-  <div rel="v-s:hasLink" data-embedded="true">
-    <div class="panel panel-default" style="word-wrap:break-word; width:400px; display: inline-block; margin:20px 20px 0 0;">
-      <div class="panel-body">
-        <em about="rdfs:comment" property="rdfs:label" class="-view edit search"></em>
-        <veda-control data-type="string" property="rdfs:comment" class="-view edit search"></veda-control>
-        <br class="-view edit search">
-        <em about="v-s:hasLink" property="rdfs:label" class="-view edit search"></em>
-        <veda-control data-type="link" rel="v-s:to" class="-view edit search fullsearch fulltext"></veda-control>
-        <span rel="v-s:from" data-template="v-ui:ClassNameLabelLinkTemplate" class="view -edit -search"></span>
-        <div class="view -edit -search">
-          <span class="fa fa-long-arrow-down"></span> <strong property="rdfs:comment" class="view -edit -search"></strong>
-        </div>
-        <span rel="v-s:to" data-template="v-ui:ClassNameLabelLinkTemplate" class="view -edit -search"></span>
-        <div class="view -edit -search" style="font-style:italic">
-          <small property="v-s:creator"></small><small property="v-s:created"></small>
+  <h3 about="v-s:hasLink" property="rdfs:label"></h3>
+  <div class="row" rel="v-s:hasLink" data-embedded="true">
+    <div class="col-md-6">
+      <div class="panel panel-default">
+        <div class="panel-body">
+          <em about="rdfs:comment" property="rdfs:label" class="-view edit search"></em>
+          <veda-control data-type="string" property="rdfs:comment" class="-view edit search"></veda-control>
+          <br class="-view edit search">
+          <em about="v-s:hasLink" property="rdfs:label" class="-view edit search"></em>
+          <veda-control data-type="link" rel="v-s:to" class="-view edit search fullsearch fulltext"></veda-control>
+          <span rel="v-s:from" data-template="v-ui:ClassNameLabelLinkTemplate" class="view -edit -search"></span>
+          <div class="view -edit -search">
+            <span class="fa fa-long-arrow-down"></span> <strong property="rdfs:comment" class="view -edit -search"></strong>
+          </div>
+          <span rel="v-s:to" data-template="v-ui:ClassNameLabelLinkTemplate" class="view -edit -search"></span>
+          <div class="view -edit -search" style="font-style:italic">
+            <small property="v-s:creator"></small><small property="v-s:created"></small>
+          </div>
         </div>
       </div>
     </div>
-  </div-->
+  </div>
+  <veda-control data-type="link" rel="v-s:hasLink" class="-view edit search create"></veda-control>
 </div>
 <script>
   individual.on("individual:propertyModified", handler);
@@ -622,166 +624,7 @@ v-ui:LinkTemplate
 """ ;
 .
 
-#--------------------- Comments template ---------------------
 
-v-ui:CommentsTemplate
-  rdf:type v-ui:ClassTemplate ;
-  rdfs:label "Template for comments rendering"@en ;
-  rdfs:label "Шаблон для отображения комментариев"@ru ;
-  v-ui:template """
-<div>
-  <h3 about="v-s:Comments" property="rdfs:label"></h3>
-  <hr class="margin-sm">
-  <div about="@" rel="v-s:hasComment" data-template="v-ui:RecursiveCommentTemplate"></div>
-  <div id="new-comment"></div>
-  <br>
-  <button class="btn btn-info" id="add-comment" about="v-s:LeaveComment" property="rdfs:label"></button>
-</div>
-<script>
-  $("#add-comment", template).click(function () {
-    var _class = new veda.IndividualModel("v-s:Comment"),
-        comment = new veda.IndividualModel(),
-        cntr = $("<div>").appendTo( $("#new-comment", template) ),
-        tmpl = new veda.IndividualModel("v-ui:SingleCommentTemplate");
-    comment["rdf:type"] = [_class];
-    comment["v-s:backwardTarget"] = [individual];
-    comment["v-s:backwardProperty"] = [new veda.IndividualModel("v-s:hasComment")];
-    comment.present(cntr, tmpl, "edit");
-    comment.one("individual:beforeReset", function () {
-      cntr.hide();
-    });
-    comment.one("individual:afterSave", function () {
-      cntr.hide();
-    });
-  });
-
-  template.on("click", "#reply.action", function (e) {
-    e.preventDefault();
-    var commentTemplate = $(this).closest("[resource]"),
-        targetComment = new veda.IndividualModel( commentTemplate.attr("resource") ),
-        cntr = $("<div>").appendTo( $("#new-reply", commentTemplate).first() ),
-        _class = new veda.IndividualModel("v-s:Comment"),
-        tmpl = new veda.IndividualModel("v-ui:SingleCommentTemplate"),
-        reply = new veda.IndividualModel();
-    reply["rdf:type"] = [_class];
-    reply["v-s:backwardTarget"] = [targetComment];
-    reply["v-s:backwardProperty"] = [new veda.IndividualModel("v-s:hasComment")];
-    reply.present(cntr, tmpl, "edit");
-
-    reply.one("individual:beforeReset", function () {
-      cntr.hide();
-    });
-    reply.one("individual:afterSave", function () {
-      cntr.hide();
-    });
-  });
-
-  template.on("click", "#edit-comment.action", function (e) {
-    e.preventDefault();
-    var tmpl = new veda.IndividualModel("v-ui:SingleCommentTemplate"),
-        commentTemplate = $(this).closest("[resource]"),
-        comment = new veda.IndividualModel( commentTemplate.attr("resource") ),
-        cntr = $("<div>").appendTo( $("#new-reply", commentTemplate).first() ),
-        commentContent = $("#comment-content", commentTemplate).hide();
-    comment.present(cntr, tmpl, "edit");
-    comment.one("individual:beforeReset", function () {
-      commentContent.show();
-      cntr.remove();
-    });
-    comment.one("individual:afterSave", function () {
-      commentContent.show();
-      cntr.remove();
-    });
-  });
-
-  //# sourceURL=v-s:CommentTreeTemplate
-</script>
-    """;
-.
-
-v-ui:SingleCommentTemplate
-  rdf:type v-ui:ClassTemplate ;
-  v-ui:forClass v-s:Comment ;
-  rdfs:label "Template for v-s:Comment class"@en ;
-  rdfs:label "Шаблон для класса v-s:Comment"@ru ;
-  v-ui:template """
-<div>
-  <br>
-  <div class="panel panel-default">
-    <div class="panel-body">
-      <em about="rdfs:comment" property="rdfs:label"></em>
-      <div property="rdfs:label" class="view -edit -search"></div>
-      <veda-control data-type="text" rows="3" property="rdfs:label" class="-view edit -search"></veda-control>
-      <em about="v-s:attachment" property="rdfs:label">Вложение</em>
-      <div rel="v-s:attachment" data-template="v-ui:FileTemplate" data-embedded="true"></div>
-      <veda-control data-type="file" rel="v-s:attachment" class="-view edit -search"></veda-control>
-      <br>
-      <button class="btn btn-primary action view -edit -search" id="edit" about="v-s:Edit" property="rdfs:label"></button>
-      <button class="btn btn-success action -view edit -search" id="save">Ok</button>
-      <button class="btn btn-default action -view edit -search" id="cancel" about="v-s:Cancel" property="rdfs:label"></button>
-      <button class="btn btn-link action view -edit -search" id="delete" about="v-s:Delete" property="rdfs:label"></button>
-    </div>
-  </div>
-</div>
-  """ ;
-.
-
-v-ui:RecursiveCommentTemplate
-  rdf:type v-ui:ClassTemplate ;
-  rdfs:label "Template for v-s:Comment class"@en ;
-  rdfs:label "Шаблон для класса v-s:Comment"@ru ;
-  v-ui:template """
-<script>
-  if ( individual.hasValue("v-s:hasComment") ) {
-    $("#edit-comment, #delete", template).remove();
-  }
-</script>
-<div class="media">
-  <div class="media-left" rel="v-s:creator">
-    <div about="@" rel="v-s:employee">
-      <script>
-        individual.hasValue("v-s:hasImage") ? $(".no-image", template).remove() : $(".has-image", template).remove() ;
-      </script>
-      <div style="width:50px;">
-        <div class="has-image" about="@" rel="v-s:hasImage" data-template="v-ui:ImageSimpleTemplateWithoutBorder"></div>
-        <div class="no-image"><span class="text-muted fa fa-user fa-4x"></span></div>
-      </div>
-    </div>
-  </div>
-  <div class="media-body">
-    <div id="comment-content">
-      <div>
-        <span rel="v-s:creator">
-          <span>
-            <strong rel="v-s:employee" data-template="v-ui:LabelTemplate"></strong>
-            <small rel="v-s:occupation" data-template="v-ui:LabelTemplate"></small>
-          </span>
-        </span>
-        <small>
-          <span>&bullet;&nbsp;&nbsp;</span>
-          <span property="v-s:created" data-template="v-ui:LabelTemplate"></span>
-        </small>
-        <br>
-        <span property="rdfs:label"></span>
-      </div>
-      <div rel="v-s:attachment" data-template="v-ui:FileTemplate"></div>
-      <small>
-        <a href="#" id="reply" class="action" about="v-s:Reply" property="rdfs:label"></a>
-        &nbsp;
-        <a href="#" id="edit-comment" class="action" about="v-s:Edit" property="rdfs:label"></a>
-        &nbsp;
-        <a href="#" id="delete" class="action" about="v-s:Delete" property="rdfs:label"></a>
-      </small>
-    </div>
-    <div id="new-reply"></div>
-    <hr class="margin-sm">
-    <div about="@" rel="v-s:hasComment" data-template="v-ui:RecursiveCommentTemplate"></div>
-  </div>
-</div>
-  """ ;
-.
-
-# ------------  / Comments template ---------------
 
 v-ui:IconPersonTemplate
   rdf:type v-ui:ClassTemplate ;
@@ -2167,7 +2010,7 @@ td:PreferencesTemplate1
     </div>
     <div class="panel-body">
     <div>
-      <em about="v-ui:preferredLanguage" property="rdfs:label">Язык</em>:
+      <strong about="v-ui:preferredLanguage" property="rdfs:label">Язык</strong>:
       <ul>
       <li rel="v-ui:preferredLanguage" data-template="v-ui:LabelTemplate"></li>
       <!--li rel="v-ui:preferredLanguage">
@@ -2178,7 +2021,7 @@ td:PreferencesTemplate1
       </li-->
       </ul>
       <veda-control rel="v-ui:preferredLanguage" data-type="link" class="-view edit search fulltext dropdown"></veda-control>
-      <em about="v-ui:displayedElements" property="rdfs:label">Отображать элементов</em>:
+      <strong about="v-ui:displayedElements" property="rdfs:label">Отображать элементов</strong>:
       <span property="v-ui:displayedElements"></span>
       <veda-control property="v-ui:displayedElements" data-type="integer" class="-view edit search"></veda-control>
     </div>
