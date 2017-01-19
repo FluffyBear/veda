@@ -7,12 +7,17 @@ function down_right_and_store(process, task)
 
 function change_rights(process, task, rightset)
 {
+    return change_rights_actor(process, task, [{"data":"-r--"}], 'actor');
+}
+
+function change_rights_actor(process, task, rightset, actor)
+{
     try
     {
-print ("@JS down_right_and_store");
+//print ("@JS down_right_and_store");
         var doc_id = process.getInputVariable('docId');
-print ("@JS doc_id=", toJson (doc_id));
-print ("@JS rightset=", toJson (rightset));
+//print ("@JS doc_id=", toJson (doc_id));
+//print ("@JS rightset=", toJson (rightset));
         var rset = []; 
         if (rightset[0].data.indexOf('r')>=0) {
             rset.push(can_read);
@@ -23,15 +28,19 @@ print ("@JS rightset=", toJson (rightset));
 
         if (doc_id)
         {
-            print ("@JS1 executor=", toJson(process.getLocalVariable ('actor')));
-            print ("@JS2 executor=", toJson(process.getExecutor()));
-    	    var executor = (process.getLocalVariable ('actor'))? process.getLocalVariable ('actor') : process.getExecutor();
+            //print ("@JS1 executor=", toJson(process.getLocalVariable ('actor')));
+            //print ("@JS2 executor=", toJson(process.getExecutor()));
+    	    var executor = (process.getLocalVariable (actor))? process.getLocalVariable (actor) : process.getExecutor();
     
     	    executor = get_properties_chain (executor, [{$get:'v-s:occupation'}], executor);
 
-print ("@JS executor=", toJson (executor));
+	    if (!executor)
+	    {
+		print ("@JS executor undefined, actor=", process.getLocalVariable (actor));
+	    }
+
     	    if (executor)
-            	addRight(ticket, rset, getUri (executor), getUri (doc_id));
+            	addRight(ticket, rset, getUri (executor), getUri (doc_id));	    
 
             var instanceOf = getUri(process['v-wf:instanceOf']);
 
@@ -76,7 +85,7 @@ function interrupt_process(ticket, process, _event_id)
 
 function change_process_status(ticket, process, status, _event_id)
 {
-    print('>>> '+toJson(process));
+//    print('>>> '+toJson(process));
     var vars = process['v-wf:inVars'];
     if (!vars) return;
     for (var i = 0; i < vars.length; i++)
@@ -141,13 +150,12 @@ function get_type_of_docId(task)
 function is_in_docflow_and_set_if_true(task)
 {
     
-    // remove next line 
-//    return [get_new_variable('result', newUri(false))];
+// # 285
+    return [get_new_variable('result', newUri(false))];
     
     try
     {
         var res = false;
-
         if (task)
         {
             var doc_id = task.getInputVariable('docId');
@@ -182,6 +190,13 @@ function is_in_docflow_and_set_if_true(task)
                             }]
                         };
                         put_individual(task.ticket, new_doc, _event_id);
+                        
+                        var add_to_document = {
+                            '@': doc_id[0].data,
+                            'v-wf:isProcess': newUri(process['@'])
+                        };
+                        print('$ add_to_document >>'+toJson(add_to_document));
+                        add_to_individual(ticket, add_to_document, _event_id);
                     }
                 }
             }
@@ -421,14 +436,14 @@ function onto_rename(ticket, document, execute_script)
         {
             remove_individual(ticket, prev_doc_uri, "");
             put_individual(ticket, document, "");
-            print('$ script_onto_rename:is_replace, ' + prev_doc['@'] + '->' + document['@']);
+            //print('$ script_onto_rename:is_replace, ' + prev_doc['@'] + '->' + document['@']);
         }
         else
         {
             if (is_update)
             {
                 put_individual(ticket, document, "");
-            	print('$ script_onto_rename:is_update, ' + prev_doc['@'] + '->' + document['@']);
+            	//print('$ script_onto_rename:is_update, ' + prev_doc['@'] + '->' + document['@']);
             //            print('$ script_onto_rename:is_update, ' + toJson(prev_doc) + '->' + toJson(document));
             }
         }

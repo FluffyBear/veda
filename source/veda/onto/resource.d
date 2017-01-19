@@ -287,7 +287,7 @@ struct Resource
         else if (type == DataType.Boolean)
             sink("(" ~ text(type) ~ ")" ~ text(get!bool()));
         else if (type == DataType.Datetime)
-            sink("(" ~ text(type) ~ ")" ~ text(get!long ()));
+            sink("(" ~ text(type) ~ ")" ~ SysTime(unixTimeToStdTime(get!long), UTC()).toISOExtString());
         else if (type == DataType.Decimal)
             sink("(" ~ text(type) ~ ")" ~ text(get!decimal()));
         else if (type == DataType.Integer)
@@ -316,11 +316,6 @@ struct Resource
     @property string data()
     {
         return get!string();
-    }
-
-    @property immutable string idata()
-    {
-        return get!string().idup;
     }
 
     @property void data(string str)

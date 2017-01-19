@@ -27,23 +27,6 @@ static this() {
 }
 
 
-Json individual_to_json(immutable(Individual)individual)
-{
-    //writeln ("\nimmutable:INDIVIDUAL->:", individual);
-    Json json = Json.emptyObject;
-
-    json[ "@" ] = individual.uri;
-    foreach (property_name, property_values; individual.resources)
-    {
-        Json resources_json = Json.emptyArray;
-        foreach (property_value; property_values)
-            resources_json ~= resource_to_json(cast(Resource)property_value);
-        json[ property_name ] = resources_json;
-    }
-//    writeln ("->JSON:", json);
-    return json;
-}
-
 Json individual_to_json(Individual individual)
 {
 //    writeln ("\nINDIVIDUAL->:", individual);
@@ -85,8 +68,8 @@ Individual json_to_individual(const Json individual_json)
 
 Json resource_to_json(Resource resource)
 {
-	//writeln ("resource=", resource);
-	
+    //writeln ("resource=", resource);
+
     Json   resource_json = Json.emptyObject;
 
     string data = resource.data;
@@ -121,12 +104,8 @@ Json resource_to_json(Resource resource)
     }
     else if (resource.type == DataType.Datetime)
     {
-//	writeln ("@v #r->j #1 resource.get!long=", resource.get!long);
-
         SysTime st = SysTime(unixTimeToStdTime(resource.get!long), UTC());
         resource_json[ "data" ] = st.toISOExtString();
-
-//	writeln ("@v #r->j #2 val=", st.toISOExtString());
     }
     else
         resource_json[ "data" ] = Json.undefined;

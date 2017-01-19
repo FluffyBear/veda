@@ -44,50 +44,14 @@ class VQL
         xr      = new XapianReader(_context);
     }
 
+    public bool close_db()
+    {
+        return xr.close_db();
+    }
+
     public void reopen_db()
     {
         xr.reopen_db();
-    }
-
-    public int get(Ticket *ticket, string filter, string freturn, string sort, int top, int limit,
-                   ref immutable(Individual)[] individuals, bool inner_get = false)
-    {
-        int                       res_count;
-
-        void delegate(string uri) dg;
-        void collect_subject(string uri)
-        {
-            if (uri is null)
-            {
-                individuals = individuals.init;
-                return;
-            }
-
-            Individual individual = Individual();
-
-            string     data = context.get_from_individual_storage(uri);
-
-            if (data is null)
-            {
-                log.trace("ERR! Unable to find the object [%s] it should be, query=[%s]", text(uri), filter);
-            }
-            else
-            {
-                if (cbor2individual(&individual, data) > 0)
-                {
-                    individuals ~= individual.idup;
-                }
-                else
-                {
-                    log.trace("ERR! invalid individual=%s", uri);
-                }
-            }
-        }
-        dg = &collect_subject;
-
-        res_count = xr.get(ticket, filter, freturn, sort, top, limit, dg, inner_get);
-
-        return res_count;
     }
 
     public int get(Ticket *ticket, string filter, string freturn, string sort, int top, int limit,
@@ -126,31 +90,35 @@ class VQL
         }
         dg = &collect_subject;
 
-        res_count = xr.get(ticket, filter, freturn, sort, top, limit, dg, inner_get);
+        SearchResult sr = xr.get(ticket, filter, freturn, sort, 0, top, limit, dg, inner_get);
+        res_count = sr.count;
 
         return res_count;
     }
 
-    public int get(Ticket *ticket, string filter, string freturn, string sort, int top, int limit,
-                   ref immutable (string)[] ids, bool inner_get = false)
+    public SearchResult get(Ticket *ticket, string filter, string freturn, string sort, int from, int top, int limit,
+                            bool inner_get = false)
     {
-        int                       res_count;
+        string[]                  res;
 
         void delegate(string uri) dg;
         void collect_subject(string uri)
         {
             if (uri is null)
             {
-                ids = ids.init;
+                res = res.init;
                 return;
             }
-            ids ~= uri;
+            res ~= uri;
         }
         dg = &collect_subject;
 
-        res_count = xr.get(ticket, filter, freturn, sort, top, limit, dg, inner_get);
+        SearchResult sr = xr.get(ticket, filter, freturn, sort, from, top, limit, dg, inner_get);
 
-        return res_count;
+        if (sr.result_code == ResultCode.OK)
+            sr.result = res;
+
+        return sr;
     }
 
     public int get(Ticket *ticket, string query_str, ref Individual[] res, bool inner_get = false)
@@ -250,7 +218,8 @@ class VQL
             }
             dg = &collect_subject;
 
-            res_count = xr.get(ticket, found_sections[ FILTER ], found_sections[ RETURN ], sort, top, limit, dg, inner_get);
+            SearchResult sr = xr.get(ticket, found_sections[ FILTER ], found_sections[ RETURN ], sort, 0, top, limit, dg, inner_get);
+            res_count = sr.count;
         }
 
 //          sw.stop();

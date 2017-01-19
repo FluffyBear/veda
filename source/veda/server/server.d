@@ -12,7 +12,7 @@ private
     import veda.core.common.context, veda.core.common.know_predicates, veda.core.common.log_msg, veda.core.impl.thread_context;
     import veda.core.common.define, veda.common.type, veda.onto.individual, veda.onto.resource, veda.util.individual8json, veda.common.logger,
            veda.core.util.utils;
-    import veda.server.load_info, veda.server.acl_manager, veda.server.storage_manager, veda.server.nanomsg_channel, veda.server.signal_to_ccus;
+    import veda.server.load_info, veda.server.acl_manager, veda.server.storage_manager, veda.server.nanomsg_channel;
 }
 
 // ////// Logger ///////////////////////////////////////////
@@ -51,8 +51,8 @@ extern (C) void handleTermination2(int _signal)
     writeln("!SYS: ", process_name, ": preparation for the exit.");
 
     f_listen_exit = true;
-    
-    thread_term(); 
+
+    thread_term();
     Runtime.terminate();
 }
 
@@ -147,9 +147,9 @@ class VedaServer : WSClient
 
             Ticket     sticket;
 
-            core_context = new PThreadContext(node_id, "core_context", P_MODULE.nop, log);
+            core_context = new PThreadContext(node_id, "core_context", log);
             sticket      = core_context.sys_ticket();
-            node         = core_context.getConfiguration();
+            node         = core_context.get_configuration();
             if (node.getStatus() == ResultCode.OK)
                 log.trace_log_and_console("VEDA NODE CONFIGURATION: [%s]", node);
 
@@ -173,9 +173,6 @@ class VedaServer : WSClient
 
             tids[ P_MODULE.n_channel ] = spawn(&nanomsg_channel, text(P_MODULE.n_channel));
             wait_starting_thread(P_MODULE.n_channel, tids);
-
-            tids[ P_MODULE.ccus_channel ] = spawn(&signal_to_ccus_channel, text(P_MODULE.ccus_channel));
-            wait_starting_thread(P_MODULE.ccus_channel, tids);
 
             tids[ P_MODULE.print_statistic ] = spawn(&print_statistic, text(P_MODULE.print_statistic),
                                                      tids[ P_MODULE.statistic_data_accumulator ]);
@@ -269,10 +266,10 @@ void commiter(string thread_name)
                                send(tid_response_reciever, true);
                            }
                        },
-                        (OwnerTerminated ot) 
-                        {
-                        	return;
-                        }, 
+                       (OwnerTerminated ot)
+                       {
+                           return;
+                       },
                        (Variant v) { writeln(thread_name, "::commiter::Received some other type.", v); });
 
         veda.server.storage_manager.flush_int_module(P_MODULE.subject_manager, false);

@@ -17,7 +17,7 @@ void main(char[][] args)
 
     Thread.sleep(dur!("seconds")(1));
 
-    FanoutProcess p_fanout = new FanoutProcess(P_MODULE.fanout_email, "127.0.0.1", 8091, new Logger("veda-core-fanout-email", "log", ""));
+    FanoutProcess p_fanout = new FanoutProcess(text(P_MODULE.fanout_email), new Logger("veda-core-fanout-email", "log", ""));
 
     p_fanout.run();
 }
@@ -28,15 +28,22 @@ class FanoutProcess : VedaModule
 
     MailSender smtp_conn;
 
-    this(P_MODULE _module_name, string _host, ushort _port, Logger log)
+    this(string _module_name, Logger log)
     {
-        super(_module_name, _host, _port, log);
+        super(_module_name, log);
     }
 
     override ResultCode prepare(INDV_OP cmd, string user_uri, string prev_bin, ref Individual prev_indv, string new_bin, ref Individual new_indv,
                                 string event_id,
                                 long op_id)
     {
+        //log.trace("[%s]: start prepare", new_indv.uri);
+
+        //scope (exit)
+        //{
+        //    log.trace("[%s]: end prepare", new_indv.uri);
+        //}
+
         ResultCode res;
 
         try
@@ -48,7 +55,7 @@ class FanoutProcess : VedaModule
                 {
                     connect_to_smtp(context);
                     return ResultCode.Connect_Error;
-                }    
+                }
             }
         }
         catch (Throwable ex)
@@ -79,14 +86,29 @@ class FanoutProcess : VedaModule
     }
 
 
+    override bool open()
+    {
+        connect_to_smtp(context);
+        return true;
+    }
+
     override bool configure()
     {
         log.trace("use configuration: %s", node);
-
-        connect_to_smtp(context);
-
         return true;
     }
+
+    override bool close()
+    {
+        delete smtp_conn;
+        return true;
+    }
+
+    override void event_of_change(string uri)
+    {
+        configure();
+    }
+
 
 ///////////////////////////////////////// SMTP FANOUT ///////////////////////////////////////////////////////////////////
     private Resources get_email_from_appointment(ref Ticket sticket, ref Individual ap)
@@ -111,7 +133,7 @@ class FanoutProcess : VedaModule
         return ac.getResources("v-s:mailbox");
     }
 
-    private Resources extract_email(ref Ticket sticket, string ap_uri)
+    private Resources extract_email(ref Ticket sticket, string ap_uri, out string label)
     {
         if (ap_uri is null || ap_uri.length < 1)
             return null;
@@ -122,6 +144,8 @@ class FanoutProcess : VedaModule
 
         if (indv.getStatus() != ResultCode.OK)
             return null;
+
+        label = indv.getFirstLiteral("rdfs:label");
 
         if (indv.isExists("rdf:type", Resource(DataType.Uri, "v-s:Appointment")))
         {
@@ -227,13 +251,14 @@ class FanoutProcess : VedaModule
             if (!need_prepare)
                 return ResultCode.OK;
 
-			ResultCode rc;
-            bool is_send = false;
-
-            log.trace("push_to_smtp[%s]: start prepare", new_indv.uri);
+            ResultCode rc;
+            bool       is_send = false;
 
             if (is_deleted == false)
             {
+                delete smtp_conn;
+                connect_to_smtp(context);
+
                 string from         = new_indv.getFirstLiteral("v-wf:from");
                 string to           = new_indv.getFirstLiteral("v-wf:to");
                 string subject      = new_indv.getFirstLiteral("v-s:subject");
@@ -242,9 +267,20 @@ class FanoutProcess : VedaModule
 
                 if (from !is null && to !is null)
                 {
-                    string email_from     = extract_email(sticket, from).getFirstString();
-                    string email_to       = extract_email(sticket, to).getFirstString();
-                    string email_reply_to = extract_email(sticket, reply_to).getFirstString();
+                    string from_label;
+                    string email_from = extract_email(sticket, from, from_label).getFirstString();
+
+                    if (from_label is null || from_label.length == 0)
+                        from_label = "Veda System";
+
+                    string      label;
+                    Recipient[] rr_email_to;
+                    foreach (Resource el; extract_email(sticket, to, label))
+                        rr_email_to ~= Recipient(el.data(), label);
+
+                    string str_email_reply_to = "";
+                    foreach (Resource el; extract_email(sticket, reply_to, label))
+                        str_email_reply_to ~= el.data() ~ ";";
 
                     if (from.length > 0 && to.length > 0)
                     {
@@ -252,11 +288,11 @@ class FanoutProcess : VedaModule
                         message_body = extract_cids(message_body, attachment_ids);
 
                         message = SmtpMessage(
-                                              Recipient(email_from, "From"),
-                                              [ Recipient(email_to, "To") ],
+                                              Recipient(email_from, from_label),
+                                              rr_email_to,
                                               subject,
                                               message_body,
-                                              email_reply_to
+                                              str_email_reply_to
                                               );
 
                         foreach (attachment_id; attachment_ids)
@@ -295,21 +331,25 @@ class FanoutProcess : VedaModule
                         log.trace("push_to_smtp: %s, %s, %s, result.msg=%s result.code=%d", new_indv.uri, message.sender, message.recipients,
                                   res.message,
                                   res.code);
-                        if (!res.success || res.code == 451)
+
+                        if (!res.success)
                         {
                             is_send = false;
-                            rc = ResultCode.Connect_Error;
+                            if (res.code == 451)
+                                rc = ResultCode.Connect_Error;
+                            if (res.code == 501)
+                                rc = ResultCode.Bad_Request;
                         }
                         else
                         {
-                        	rc = ResultCode.OK;
+                            rc      = ResultCode.OK;
                             is_send = true;
-                            new_indv.addResource("v-s:isSuccess", Resource(true));
+                            //new_indv.addResource("v-s:isSuccess", Resource(true));
                         }
 
-                        new_indv.addResource("v-s:infoOfExecuting", Resource(text(res)));
-                        new_indv.addResource("v-s:created", Resource(DataType.Datetime, Clock.currTime().toUnixTime()));
-                        new_indv.addResource("rdfs:label", Resource("email, from:" ~ email_from ~ ", to:" ~ email_to));
+                        //new_indv.addResource("v-s:infoOfExecuting", Resource(text(res)));
+                        //new_indv.addResource("v-s:created", Resource(DataType.Datetime, Clock.currTime().toUnixTime()));
+                        //new_indv.addResource("rdfs:label", Resource("email, from:" ~ email_from ~ ", to:" ~ email_to));
                         //context.put_individual(&sticket, new_indv.uri, new_indv, false, "fanout");
                     }
                     else
@@ -342,11 +382,11 @@ class FanoutProcess : VedaModule
             Ticket    sticket = context.sys_ticket();
 
             Resources gates = node.resources.get("v-s:send_an_email_individual_by_event", Resources.init);
-            log.trace("connect_to_smtp:found gates: %s", gates);
+            //log.trace("connect_to_smtp:found gates: %s", gates);
             foreach (gate; gates)
             {
                 Individual connection = context.get_individual(&sticket, gate.uri);
-
+                subscribe_on_prefetch(gate.uri);
                 Resource   transport = connection.getFirstResource("v-s:transport");
                 if (transport != Resource.init)
                 {

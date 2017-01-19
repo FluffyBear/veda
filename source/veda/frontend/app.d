@@ -33,7 +33,7 @@ extern (C) void handleTerminationW(int _signal)
 
     writeln("!SYS: veda.app: exit");
 
-    thread_term(); 
+    thread_term();
     Runtime.terminate();
 //    kill(getpid(), SIGKILL);
 //    exit(_signal);
@@ -144,7 +144,7 @@ shared static this()
 //    }
     veda.core.common.context.Context context;
 
-    context = new PThreadContext(node_id, "frontend", P_MODULE.webserver, log, "127.0.0.1:8088/ws");
+    context = new PThreadContext(node_id, "frontend", log, "127.0.0.1:8088/ws");
 
     sys_ticket = context.sys_ticket(false);
 
@@ -162,8 +162,10 @@ shared static this()
             return Individual.init;
     }
 
-    long count_individuals = context.count_individuals();
-    if (count_individuals < 2)
+    string[] uris = context.get_individuals_ids_via_query(&sys_ticket, "'rdfs:isDefinedBy.isExists' == true", null, null, 0, 100000, 100000).result;
+
+//    long count_individuals = context.count_individuals();
+    if (uris.length == 0)
     {
         context.sys_ticket(true);
         onto_config = load_config_onto();
@@ -234,10 +236,13 @@ bool start_http_listener(Context context, ushort http_port)
         //settings.bindAddresses = ["127.0.0.1"];
         settings.errorPageHandler = toDelegate(&view_error);
         //settings.options = HTTPServerOption.parseURL|HTTPServerOption.distribute;
+        
+        HTTPFileServerSettings file_serve_settings = new HTTPFileServerSettings; 
+		file_serve_settings.maxAge = dur!"hours"(8);
 
         auto router = new URLRouter;
         router.get("/files/*", &vsr.fileManager);
-        router.get("*", serveStaticFiles("public"));
+        router.get("*", serveStaticFiles("public", file_serve_settings));
         router.get("/", serveStaticFile("public/index.html"));
         router.get("/tests", serveStaticFile("public/tests.html"));
         router.post("/files", &uploadFile);
@@ -288,12 +293,12 @@ bool start_http_listener(Context context, ushort http_port)
         log.trace("listen /ws %s:%s", text(settings.bindAddresses), text(settings.port));
 
 
-	    router.get("/ccus", handleWebSockets(&handleWebSocketConnection_CCUS));
-	    settings      = new HTTPServerSettings;
-	    settings.port = 8088;
-	    //settings.bindAddresses = [ "127.0.0.1" ];
-	    listenHTTP(settings, router);
-	    log.trace("listen /ccus %s:%s", text(settings.bindAddresses), text(settings.port));
+        //router.get("/ccus", handleWebSockets(&handleWebSocketConnection_CCUS));
+        //settings      = new HTTPServerSettings;
+        //settings.port = 8088;
+        //settings.bindAddresses = [ "127.0.0.1" ];
+        //listenHTTP(settings, router);
+        //log.trace("listen /ccus %s:%s", text(settings.bindAddresses), text(settings.port));
 
         return true;
     }
@@ -311,7 +316,7 @@ Individual *[ string ] load_config_onto()
     log.trace("load_config_onto");
     string[ string ] prefixes;
 
-    Individual *[ string ] l_individuals = ttl2individuals(onto_path ~ "/config.ttl", prefixes, prefixes);
+    Individual *[ string ] l_individuals = ttl2individuals(onto_path ~ "/config.ttl", prefixes, prefixes, log);
 
     log.trace("load_config_onto %s", l_individuals);
 

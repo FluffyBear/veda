@@ -50,7 +50,7 @@
     </div>
 
     <!-- Notification alerts -->
-    <div id="notification-container" style="width:20%; max-height: 40%; position:fixed; bottom:10px; right:10px;z-index:99999; overflow:hidden"></div>
+    <div id="notification-container" style="width:25%; max-height: 40%; position:fixed; bottom:10px; right:10px;z-index:99999; overflow:hidden"></div>
 
     <!-- Templates -->
 
@@ -145,7 +145,10 @@
     <!-- Drafts template -->
     <script type="html/template" id="drafts-template">
       <div id="drafts" class="container-fluid">
-        <h3 id="drafts-title"></h3>
+        <ul class="nav nav-tabs nav-right" role="tablist">
+          <li class="pull-left"><h2 id="drafts-title"></h2></li>
+        </ul>
+        <br>
         <ol id="drafts-list"></ol>
         <button id="delete-all" class="btn btn-default"></button>
       </div>
@@ -284,11 +287,8 @@
       <div class="modal" id="search-modal" tabindex="-1" role="dialog" aria-labelledby="modalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
           <div class="modal-content">
-            <!--div class="modal-header">
-              <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-              <h4 class="modal-title" id="myModalLabel">Поиск объекта</h4>
-            </div-->
             <div class="modal-body">
+              <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-primary pull-left" id="ok" data-dismiss="modal">Ok</button>
@@ -305,10 +305,11 @@
         <div class="modal-dialog modal-lg">
           <div class="modal-content">
             <div class="modal-body">
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-primary pull-left" id="ok" data-dismiss="modal">Ok</button>
-              <button type="button" class="btn btn-default pull-left" id="cancel" data-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-link pull-left" id="follow">Подробнее</button>
             </div>
           </div>
         </div>
@@ -320,10 +321,7 @@
       <div class="modal" id="show-rights-modal" tabindex="-1" role="dialog" aria-labelledby="modalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
           <div class="modal-content">
-            <!--div class="modal-header">
-              <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-              <h4 class="modal-title" id="myModalLabel">Поиск объекта</h4>
-            </div-->
+            <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
             <div class="modal-body">
             </div>
             <div class="modal-footer">
@@ -341,6 +339,7 @@
         <div class="modal-dialog modal-lg">
           <div class="modal-content">
             <div class="modal-body">
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             </div>
           </div>
         </div>
@@ -423,9 +422,7 @@
 
     <!-- Integer control template -->
     <script type="html/template" id="integer-control-template">
-      <!--div class="input-group"-->
       <div>
-        <!--div class="input-group-addon btn btn-default"><strong>#</strong></div-->
         <input type="text" class="form-control" placeholder="#" />
       </div>
     </script>
@@ -442,23 +439,13 @@
 
     <!-- Decimal control template -->
     <script type="html/template" id="decimal-control-template">
-      <!--div class="input-group"-->
       <div>
-        <!--div class="input-group-addon btn btn-default"><strong>#.#</strong></div-->
         <input type="text" class="form-control" placeholder="#.#" />
       </div>
     </script>
 
     <!-- Boolean control template -->
     <script type="html/template" id="boolean-control-template">
-      <div class="input-group">
-        <div class="input-group-addon btn btn-default"><i class="glyphicon glyphicon-ok"></i></div>
-        <input type="text" class="form-control" />
-      </div>
-    </script>
-
-    <!-- Boolean checkbox control template -->
-    <script type="html/template" id="boolean-checkbox-control-template">
       <span>
         <input type="checkbox" />
       </span>
@@ -468,7 +455,7 @@
     <script type="html/template" id="select-control-template">
       <div>
         <select class="form-control">
-          <option value="">...</option>
+          <option></option>
         </select>
       </div>
     </script>
@@ -478,7 +465,7 @@
       <div>
         <div class="checkbox">
           <label>
-            <input type="checkbox" bound />
+            <input type="checkbox" />
           </label>
         </div>
       </div>
@@ -489,7 +476,7 @@
       <div>
         <div class="radio">
           <label>
-            <input type="radio" bound />
+            <input type="radio" />
           </label>
         </div>
       </div>
@@ -734,6 +721,7 @@
 
     <!-- Veda browser & server -->
     <script type="text/javascript" src="/js/common/lib/riot.js"></script>
+    <script type="text/javascript" src="/js/common/lib/promiz.min.js"></script>
     <script type="text/javascript" src="/js/common/util.js"></script>
     <script type="text/javascript" src="/js/common/veda_spa.js"></script>
     <script type="text/javascript" src="/js/common/app_model.js"></script>
@@ -772,6 +760,32 @@
       $(function(){
         veda.Module({/* configuration object */});
       });
+    </script>
+    <script type="text/javascript">
+      // Bootstrap multiple modals fix
+      // origin: http://stackoverflow.com/questions/19305821/multiple-modals-overlay
+      $(document).on("click", ".modal #follow", function () {
+        var uri = $(this).closest(".modal").find("[resource]").attr("resource");
+        riot.route("#/" + uri);
+      });
+      $(document).on({
+        'show.bs.modal': function () {
+          var zIndex = 1040 + (10 * $('.modal:visible').length);
+          $(this).css('z-index', zIndex);
+          setTimeout(function() {
+            $('.modal-backdrop').not('.modal-stack').css('z-index', zIndex - 1).addClass('modal-stack');
+          }, 0);
+        },
+        'hidden.bs.modal': function() {
+          if ($('.modal:visible').length > 0) {
+            // restore the modal-open class to the body element, so that scrolling works
+            // properly after de-stacking a modal.
+            setTimeout(function() {
+              $(document.body).addClass('modal-open');
+            }, 0);
+          }
+        }
+      }, '.modal');
     </script>
     <script>
       var $buoop = {

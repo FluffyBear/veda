@@ -5,6 +5,14 @@ body {
   color: #233333;
 }
 
+.container .container {
+  width: inherit;
+/*  padding-right: inherit;
+  padding-left: inherit;
+  margin-right: inherit;
+  margin-left: inherit;*/
+}
+
 /* Gray tooltip */
 .tooltip-inner {
   background-color: #333333;
@@ -133,7 +141,7 @@ footer {
 label .has-error + * {
   color: #a94442;
 }
-.has-error input[type='button'], .has-error input[type='button']:hover {
+.has-error .btn, .has-error input[type='button'], .has-error input[type='button']:hover {
   color: #a94442;
   border-color: #a94442;
 }
@@ -604,7 +612,7 @@ td > #rel-actions {
   position:absolute !important;
   top:0px;
   right:0px;
-  z-index:100;
+  z-index:10;
   padding:inherit;
 }
 .red-outline {
@@ -623,27 +631,34 @@ td > #rel-actions {
   display: block;
   position: absolute;
   top: 0px;
-  right:0px;
+  left:0px;
   z-index: 99;
+  opacity: 0.7;
 }
 .sortable-placeholder {
-  height: 50px;
   outline: 3px dashed #aaa!important;
   outline-offset: -3px!important;
   background-color: #eee!important;
-  margin: 20px 0px;
+  display: inline-block;
 }
 .sortable-overflow {
   overflow: auto;
 }
 tbody .sortable-placeholder {
-  height: 50px;
+  display: table-row;
   outline: 3px dashed #aaa!important;
   outline-offset: -3px!important;
 }
 
 .affix {
   top: 20px;
+}
+
+button.close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 100;
 }
 
 /* [BEGIN] NET EDITOR */
@@ -980,6 +995,40 @@ svg.process-path-highlight path
 }
 
 /* TABS END */
+
+/* PANEL HORIZONTAL */
+.panel-horizontal {
+  display: table;
+  width: auto;
+}
+.panel-horizontal > .panel-body {
+  display: table-cell;
+  width: 100%;
+}
+.panel-horizontal > .panel-heading {
+  display: table-cell;
+  white-space:nowrap;
+  vertical-align: middle;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+  border-top-right-radius: 0px;
+  border-bottom-right-radius: 0px;
+  border-right-width: 1px;
+  border-right-color: inherit!important;
+  border-right-style: solid;
+  border-bottom: none;
+}
+.panel-horizontal > .panel-footer {
+  display: table-cell;
+  white-space:nowrap;
+  vertical-align: middle;
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+  border-left-width: 1px;
+  border-left-color: inherit!important;
+  border-left-style: solid;
+  border-top: none;
+}
 
 /* Fullcalendar BEGIN */
 .fc a[data-goto], .fc a[data-goto]:hover {color: inherit;}

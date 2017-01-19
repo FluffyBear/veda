@@ -58,7 +58,7 @@ veda.Module(function (veda) { "use strict";
 
       // Transform user input like "roman karpov" to "'*'=='roman' && '*'=='karpov'"
       if (q && q.indexOf("==") < 0) {
-        q = "(" + q.trim().split(" ").map(function (t) { return "'*'=='" + t + "*'";}).join("&&") + ")";
+        q = "(" + q.replace(/[-*]/g, " ").replace(/\s+/g, " ").trim().split(" ").map(function (t) { return "'*'=='" + t + "*'";}).join("&&") + ")";
       }
 
       // Prefix query if defined in constructor
@@ -66,7 +66,7 @@ veda.Module(function (veda) { "use strict";
 
       self.fullQuery = q;
 
-      var results = query(veda.ticket, q, self.sort, databases, reopen);
+      var results = query(veda.ticket, q, self.sort, databases, reopen).result;
 
       var t2 = Date.now();
       self.query_time = t2 - t1;
