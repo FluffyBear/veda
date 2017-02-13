@@ -3,14 +3,20 @@ var webdriver = require('selenium-webdriver'),
     assert = require('assert');
 
 module.exports = {
-  /**
-   * Создать Персону с указанием уникального значения в качестве отчества
-   */
+    /**
+     * Создать Персону с указанием уникального Имени, Фамилии, Отчества, Даты Рождения
+     * @param driver
+     * @param drv
+     * @param lastName - Фамилия
+     * @param firstName - Имя
+     * @param middleName - Отчество
+     * @param date - Дата рождения.
+     */
   createPerson: function (driver, drv, lastName, firstName, middleName, date) {
     basic.openCreateDocumentForm(driver, 'Персона', 'v-s:Person');
-
+    //driver.sleep(basic.FAST_OPERATION);
     // Документ нельзя создать или отправить пока не заполнены обязательные поля
-    driver.findElement({css:'div[typeof="v-s:Person"] > div.panel > div.panel-footer > button#save'}).isEnabled().then(function (flag) {
+    driver.findElement({css:'div[typeof="v-s:Person"] > button#save.action'}).isEnabled().then(function (flag) {
       assert(!flag);
     }).thenCatch(function (e) {basic.errorHandler(e, "Save button must be inactive");});
 
@@ -43,7 +49,7 @@ module.exports = {
 
     //basic.chooseFromDropdown(driver, 'v-s:hasAppointment', 'Администратор2', 'Администратор2 : Аналитик');
 
-    driver.executeScript("$('div[typeof=\"v-s:Person\"] > div.panel > div.panel-footer > button#save')[0].scrollIntoView(true);");
+    driver.executeScript("$('div[typeof=\"v-s:Person\"] > button#save.action')[0].scrollIntoView(true);");
 
     // Документ становится возможно сохранить
     basic.isEnabled(driver, '#save', basic.FAST_OPERATION);

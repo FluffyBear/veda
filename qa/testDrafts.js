@@ -3,6 +3,12 @@ var webdriver = require('selenium-webdriver'),
     firstName = ''+Math.round(+new Date()/1000),
     assert = require('assert');
 
+/**
+ * Проверка черновиков
+ * @param driver
+ * @param count - количество черновиков, которое должно быть
+ */
+
 function check(driver, count) {
     driver.findElement({id:'menu'}).click()
         .thenCatch(function (e) {basic.errorHandler(e, "Cannot click on settings button");});
@@ -30,6 +36,21 @@ function check(driver, count) {
     }).thenCatch(function (e) {basic.errorHandler(e, "Seems there is no `drafts` field");});
 }
 
+/**1.Open Page -> Login(as karpovrt);
+ * 2.Open create person document form -> Edit first and last name -> Save as draft -> Check data
+ * 3.Check number of drafts(must be 1);
+ * 4.Open draft -> Edit(add middle name and Date) -> Save as document;
+ * 5.Check number of drafts(must be 0);
+ * 6.Quit;
+ *
+ * 1.Открываем Страницу -> Заходим в систему под karpovrt;
+ * 2.Открываем форму создания Персоны -> Вводим Фамилию и Имя -> Отправляем в черновик -> Проверяем, правильно ли сохранилась
+ * персона в черновике;
+ * 3.Проверяем количество черновиков(должно быть 1);
+ * 4.Заходим в созданный черновик -> Редактируем его(Добавляем Отчество и Дату рождения) -> Сохраняем;
+ * 5.Проверяем, что черновиков 0;
+ * 6.Выход.
+ */
 
 
 basic.getDrivers().forEach(function(drv) {
@@ -37,7 +58,7 @@ basic.getDrivers().forEach(function(drv) {
     basic.openPage(driver, drv);
     basic.login(driver, 'karpovrt', '123', '2', 'Администратор2');
     basic.openCreateDocumentForm(driver, 'Персона', 'v-s:Person');
-    driver.findElement({css:'div[typeof="v-s:Person"] > div.panel > div.panel-footer > button#save'}).isEnabled().then(function (flag) {
+    driver.findElement({css:'div[typeof="v-s:Person"] > .action#save'}).isEnabled().then(function (flag) {
         assert(!flag);
     }).thenCatch(function (e) {basic.errorHandler(e, "Save button must be inactive");});
     var lastName = 'Draft';
@@ -45,7 +66,7 @@ basic.getDrivers().forEach(function(drv) {
         .thenCatch(function (e) {basic.errorHandler(e, "Cannot fill 'v-s:lastName' for person");});
     driver.findElement({css:'[property="v-s:firstName"] + veda-control input'}).sendKeys(firstName)
         .thenCatch(function (e) {basic.errorHandler(e, "Cannot fill 'v-s:firstName' for person");});
-    driver.executeScript("$('div[typeof=\"v-s:Person\"] > div.panel > div.panel-footer > button#draft')[0].scrollIntoView(true);");
+    driver.executeScript("$('div[typeof=\"v-s:Person\"] > .action#draft')[0].scrollIntoView(true);");
     basic.isEnabled(driver, '#draft', basic.FAST_OPERATION);
     driver.findElement({css:'#draft'}).click()
         .thenCatch(function (e) {basic.errorHandler(e, "Cannot click on 'draft' button");});
@@ -59,7 +80,7 @@ basic.getDrivers().forEach(function(drv) {
     //Проверям наличие его в наших черновиках
     check(driver, "true");
     //Досоздаем черновик
-    driver.executeScript("$('div[typeof=\"v-s:Person\"] > div.panel > div.panel-footer > button#edit')[0].scrollIntoView(true);");
+    driver.executeScript("$('div[typeof=\"v-s:Person\"] > .action#edit')[0].scrollIntoView(true);");
     basic.isEnabled(driver, '#edit');
     driver.findElement({css:'#edit'}).click()
         .thenCatch(function (e) {basic.errorHandler(e, "Cannot click on 'edit' button");});
@@ -72,7 +93,7 @@ basic.getDrivers().forEach(function(drv) {
     driver.findElement({css:'[property="v-s:lastName"] + veda-control input'}).click()
         .thenCatch(function (e) {basic.errorHandler(e, "Cannot click on 'last name control' for person");});
     //Сохраняем его как нормальный документ
-    driver.executeScript("$('div[typeof=\"v-s:Person\"] > div.panel > div.panel-footer > button#save')[0].scrollIntoView(true);");
+    driver.executeScript("$('div[typeof=\"v-s:Person\"] > .action#save')[0].scrollIntoView(true);");
     basic.isEnabled(driver, '#edit', basic.FAST_OPERATION);
     driver.findElement({css:'#save'}).click()
         .thenCatch(function (e) {basic.errorHandler(e, "Cannot click on 'save' button");});
