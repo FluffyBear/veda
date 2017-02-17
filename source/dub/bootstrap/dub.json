@@ -2,6 +2,7 @@
 	"name": "veda-bootstrap",
 	"description": "veda-bootstrap",
 	"dependencies": {
+		"msgpack-d": "1.0.0-beta.6"
 	},
         "license": "LGPL v3",
 	"sourcePaths":[

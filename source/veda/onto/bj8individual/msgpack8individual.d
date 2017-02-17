@@ -1,6 +1,5 @@
 /**
  * msgpack <-> individual
-
    Copyright: © 2014-2017 Semantic Machines
    License: Subject to the terms of the MIT license, as written in the included LICENSE.txt file.
    Authors: Valeriy Bushenev
@@ -8,6 +7,7 @@
 
 module veda.onto.bj8individual.msgpack8individual;
 
+private import msgpack;
 private import std.outbuffer, std.stdio, std.string, std.conv;
 private import veda.common.type, veda.onto.resource, veda.onto.individual, veda.onto.lang, veda.bind.msgpuck;
 import veda.util.tests_tools;
@@ -17,57 +17,56 @@ import veda.util.tests_tools;
 string  dummy;
 ubyte[] buff;
 
-private long write_individual(ref Individual ii, char *w)
+private ubyte[] write_individual(ref Individual ii)
 {
-    ulong map_len = ii.resources.length + 1;
-    char *w0 = w;
-    w = mp_encode_array(w, 2);
-    w = mp_encode_str(w, cast(char *)ii.uri.dup, cast(uint)ii.uri.length);
-    w = mp_encode_map(w, cast(uint)ii.resources.length);
-
+    // writeln("PACK START");
+    Packer packer = Packer(false);
+    packer.beginArray(2).pack(ii.uri.dup);
+    // stderr.writef("INDIVID URI=%s\n", ii.uri);
+    // stderr.writef("D WRITE ARRAY of 2\n");
+    packer.beginMap(ii.resources.length);
+    // stderr.writef("D WRITE RESOURCES\n");
     foreach (key, resources; ii.resources)
-        w = write_resources(key, resources, w, w0);
+        write_resources(key, resources, packer);
     
-    return(w - cast (char*)buff.ptr);
+    // writefln("PACKED %s", cast(string)packer.stream.data);
+    // writeln("PACK END");
+    return packer.stream.data;
 }
 
-private char *write_resources(string uri, ref Resources vv, char *w, char *w0)
+private void write_resources(string uri, ref Resources vv, ref Packer packer)
 {
-    w = mp_encode_str(w, cast(char *)uri.dup, cast(uint)uri.length);
-//           writefln("@d#1 mp_encode_str uri=[%s] len=[%d] w-w0=[%d]", uri.dup, uri.length, w-w0);
-
-    w = mp_encode_array(w, cast(uint)vv.length);
-//           writefln("@d#2 mp_encode_array len=[%d] w-w0=[%d]", vv.length, w-w0);
+    packer.pack(uri.dup);
+    // stderr.writef("\tRESOURCE URI=%s\n", uri);
+    packer.beginArray(vv.length);
 
     foreach (value; vv)
     {
         if (value.type == DataType.Uri)
         {
-            string svalue = value.get!string.dup;
-            w = mp_encode_str(w, cast(char *)svalue, cast(uint)svalue.length);
+            packer.pack(value.get!string.dup);
+            // stderr.writef("\tDATATYPE URI %s\n", value.get!string);
         }
         else if (value.type == DataType.Integer)
         {
-            w = mp_encode_uint(w, value.get!long);
+            packer.pack(value.get!long);
+            // stderr.writef("\tDATATYPE INTEGER %d\n", value.get!long);
         }
         else if (value.type == DataType.Datetime)
         {
-            w = mp_encode_array(w, 2);
-            w = mp_encode_uint(w, DataType.Datetime);
-            w = mp_encode_uint(w, value.get!long);
+            packer.beginArray(2).pack(DataType.Datetime, value.get!long); 
+            // stderr.writef("\tDATATYPE DATETIME %d\n", value.get!long);
         }
         else if (value.type == DataType.Decimal)
         {
             decimal x = value.get!decimal;
-
-            w = mp_encode_array(w, 3);
-            w = mp_encode_uint(w, DataType.Decimal);
-            w = mp_encode_uint(w, x.mantissa);
-            w = mp_encode_uint(w, x.exponent);
+            packer.beginArray(3).pack(DataType.Decimal, x.mantissa, x.exponent);    
+            // stderr.writef("\tDATATYPE DECIMAL %d %d\n", x.mantissa, x.exponent);
         }
         else if (value.type == DataType.Boolean)
         {
-            w = mp_encode_bool(w, value.get!bool);
+            packer.pack(value.get!bool);
+            // stderr.writef("\tDATATYPE BOOLEAN %s\n", value.get!long);
         }
         else
         {
@@ -75,30 +74,23 @@ private char *write_resources(string uri, ref Resources vv, char *w, char *w0)
 
             if (value.lang != LANG.NONE)
             {
-                w = mp_encode_array(w, 3);
-                w = mp_encode_uint(w, DataType.String);
-                w = mp_encode_str(w, cast(char *)svalue, cast(uint)svalue.length);
-                w = mp_encode_uint(w, value.lang);
+                packer.beginArray(3).pack(DataType.String, svalue.dup, value.lang);
+                // stderr.writef("\tSOME LANG %s %d\n", svalue , value.lang);
             }
             else
             {
-                w = mp_encode_array(w, 2);
-                w = mp_encode_uint(w, DataType.String);
-                w = mp_encode_str(w, cast(char *)svalue, cast(uint)svalue.length);
+                // stderr.writef("\tLANG NONE %s\n", svalue);
+                packer.beginArray(2).pack(DataType.String, svalue.dup);
             }
         }
     }
-    return w;
 }
 
 public string individual2msgpack(ref Individual in_obj)
 {
-    if (buff is null || buff.length == 0)
-        buff = new ubyte[ 1024 * 1024 ];
+    ubyte[] buff = write_individual(in_obj);
 
-    long len = write_individual(in_obj, cast (char*)buff.ptr);
-
-    return cast(string)buff[ 0..len ].dup;
+    return cast(string)buff[ 0..buff.length ].dup;
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -109,185 +101,125 @@ public int msgpack2individual(ref Individual individual, string in_str)
     {
         try
         {
-            char *ptr         = cast(char *)in_str.ptr;
-            int  root_el_size = mp_decode_array(&ptr);
+            StreamingUnpacker unpacker = StreamingUnpacker(cast(ubyte[])in_str);
 
-            if (root_el_size != 2)
-                return -1;
-
-            uint uri_lenght;
-
-               if (mp_typeof(*ptr) != mp_type.MP_NIL) {
-                   	writefln ("@d#1 ERR! MP_NIL in_str=%s", in_str);
-                   	return -1;
-               }
-
-            char *uri = mp_decode_str(&ptr, &uri_lenght);
-
-            individual.uri = cast(string)uri[ 0..uri_lenght ].dup;
-
-            int predicates_length = mp_decode_map(&ptr);
-            for (int idx = 0; idx < predicates_length; idx++)
-            {
-                uint   key_lenght;
+            // writefln("TRY TO UNPACK %s", in_str);
+            if (unpacker.execute()) 
+            {      
+                size_t root_el_size = unpacker.unpacked.length;
+                // writefln("TRY TO UNPACK root_el_size=%d", root_el_size);
+                if (root_el_size != 2)
+                    return -1;
                 
-               if (mp_typeof(*ptr) != mp_type.MP_NIL) {
-                   	writefln ("@d#2 ERR! MP_NIL in_str=%s", in_str);
-                   	return -1;
-               }
-                
-                char   *key      = mp_decode_str(&ptr, &key_lenght);
-                string predicate = cast(string)key[ 0..key_lenght ].dup;
-
-                Resources resources = Resources.init;
-
-                int resources_el_length = mp_decode_array(&ptr);
-                for (int i_resource = 0; i_resource < resources_el_length; i_resource++)
+                foreach (obj; unpacker.purge()) 
                 {
-                    mp_type el_type = mp_typeof(*ptr);
-
-                    if (el_type == mp_type.MP_ARRAY)
+                    switch (obj.type) 
                     {
-                        int predicate_el_length = mp_decode_array(&ptr);
-                        if (predicate_el_length == 2)
+                        case Value.Type.raw:
+                        individual.uri = (cast(string)obj.via.raw).dup;
+                        // writefln("\tTRY TO UNPACK uri=%s", individual.uri);
+                        break;
+
+                        case Value.Type.map:
+                        // writefln("\tTRY TO UNPACK map_len=%d", obj.via.map.length);
+                        Value[Value] map = obj.via.map;
+                        foreach (key; map.byKey) 
                         {
-                            long type;
-
-                            if (mp_typeof(*ptr) == mp_type.MP_UINT) 
-                                type = mp_decode_uint(&ptr);
-                            else
-                                type = mp_decode_int(&ptr);
-
-                            if (type == DataType.Datetime)
+                            string predicate = (cast(string)key.via.raw).dup;
+                            // writeln("\t\tTRY UNPACK KEY VAL: ", predicate);
+                            Resources resources = Resources.init;
+                            Value[] resources_vals = map[key].via.array;
+                            // writeln("\t\tTRY UNPACK RESOURCES len ", resources_vals.length);
+                            for (int i = 0; i < resources_vals.length; i++) 
                             {
-                                long value;
-                                
-                                if (mp_typeof(*ptr) == mp_type.MP_UINT) 
-                                    value = mp_decode_uint(&ptr);
-                                else
-                                    value = mp_decode_int(&ptr);
+                                // writeln("\t\t\tTRY UNPACK RESOURCES type ", resources_vals[i].type);
+                                switch (resources_vals[i].type)
+                                {
+                                    case Value.Type.array:
+                                    Value[] arr = resources_vals[i].via.array;
+                                    if (arr.length == 2)
+                                    {
+                                        long type = arr[0].via.uinteger;
 
-                                resources ~= Resource(DataType.Datetime, value);
-                            }
-                            else if (type == DataType.String)
-                            {
-                                uint val_length;
-                                string data;
-                                if (mp_typeof(*ptr) != mp_type.MP_NIL) {
-                                    char *val = mp_decode_str(&ptr, &val_length);
-                                    data = val[ 0..val_length ].dup;
-                                } else {
-                                    mp_decode_nil(&ptr);
-                                    data = "";
+                                        if (type == DataType.Datetime)
+                                        {
+                                            long value = arr[1].via.uinteger;
+                                            resources ~= Resource(DataType.Datetime, value);
+                                        }
+                                        else if (type == DataType.String)
+                                        {  
+                                            resources ~= Resource(DataType.String, 
+                                                (cast(string)arr[1].via.raw).dup);
+                                        }
+                                        else
+                                        {
+                                            writeln("@1");
+                                            return -1;
+                                        }
+                                    }
+                                    else if (arr.length == 3)
+                                    {
+                                        long type = arr[0].via.uinteger;
+
+                                        if (type == DataType.Decimal)
+                                        {
+                                            long mantissa = arr[1].via.uinteger;
+                                            long exponent = arr[2].via.uinteger;
+                                            resources ~= Resource(decimal(mantissa, cast(byte)exponent));
+                                        }
+                                        else if (type == DataType.String)
+                                        {
+
+                                            long lang = arr[2].via.uinteger;
+                                            resources ~= Resource(DataType.String, 
+                                                (cast(string)arr[1].via.raw).dup, cast(LANG)lang);
+                                        }
+                                        else
+                                        {
+                                            writeln("@2");
+                                            return -1;
+                                        }
+                                    }
+                                    break;
+
+                                    case Value.Type.raw:
+                                    // writeln("\t\t\t\t", cast(string)resources_vals[i].via.raw);
+                                    resources ~= Resource(DataType.Uri,                                        
+                                        (cast(string)resources_vals[i].via.raw).dup);
+                                    break;
+
+                                    case Value.Type.unsigned:
+                                    resources ~= Resource(DataType.Integer, resources_vals[i].via.uinteger);
+                                    break;
+
+                                    case Value.Type.boolean:
+                                    resources ~= Resource(DataType.Boolean, resources_vals[i].via.boolean);
+                                    break;
+
+                                    default:
+                                    break;
                                 }
-                                resources ~= Resource(DataType.String, data);
                             }
-                            else
-                                return -1;
+                            individual.resources[ predicate ] = resources;
                         }
-                        else if (predicate_el_length == 3)
-                        {
-                            long type;
+                        break;
 
-                            if (mp_typeof(*ptr) == mp_type.MP_UINT) 
-                                type = mp_decode_uint(&ptr);
-                            else
-                                type = mp_decode_int(&ptr);
-
-                            if (type == DataType.Decimal)
-                            {
-                                long mantissa, exponent;
-
-
-                                if (mp_typeof(*ptr) == mp_type.MP_UINT) 
-                                    mantissa = mp_decode_uint(&ptr);
-                                else
-                                    mantissa = mp_decode_int(&ptr);
-
-                                if (mp_typeof(*ptr) == mp_type.MP_UINT) 
-                                    exponent = mp_decode_uint(&ptr);
-                                else
-                                    exponent = mp_decode_int(&ptr);
-                                
-                                resources ~= Resource(decimal(mantissa, cast(byte)exponent));
-                            }
-                            else if (type == DataType.String)
-                            {
-                                uint val_length;
-                                string data;
-
-                                if (mp_typeof(*ptr) != mp_type.MP_NIL) {
-                                    char *val = mp_decode_str(&ptr, &val_length);
-                                    data = val[ 0..val_length ].dup;
-                                } else {
-                                    mp_decode_nil(&ptr);
-                                    data = "";
-                                }
-
-                                long lang;
-                                if (mp_typeof(*ptr) == mp_type.MP_UINT) 
-                                    lang = mp_decode_uint(&ptr);
-                                else
-                                    lang = mp_decode_int(&ptr);
-
-                                resources ~= Resource(DataType.String, data, cast(LANG)lang);
-                                
-                            }
-                            else
-                                return -1;
-                        }
-                        else
-                        {
-                            writeln("@3");
-                            return -1;
-                        }
-                    }
-                    else if (el_type == mp_type.MP_STR)
-                    {
-                        uint val_length;
-                        string data;
-                        if (mp_typeof(*ptr) != mp_type.MP_NIL) {
-                            char *val = mp_decode_str(&ptr, &val_length);
-                            data = val[ 0..val_length ].dup;
-                        } else {
-                            mp_decode_nil(&ptr);
-                            data = "";
-                        }
-                        resources ~= Resource(DataType.Uri, data);
-                    }
-                    else if (el_type == mp_type.MP_INT || el_type == mp_type.MP_UINT)
-                    {
-                        // this int
-                        long val;
-                        if (mp_typeof(*ptr) == mp_type.MP_UINT) 
-                            val = mp_decode_uint(&ptr);
-                        else
-                            val = mp_decode_int(&ptr);
-                        resources ~= Resource(DataType.Integer, val);
-                    }
-                    else if (el_type == mp_type.MP_BOOL)
-                    {
-                        // this bool
-                        long val = mp_decode_bool(&ptr);
-                        resources ~= Resource(DataType.Boolean, val);
-                    }
-                    else
-                    {
-                        writeln("@4 el_type=", text(cast(mp_type)el_type));
-                        return -1;
+                        default:
+                        break;
                     }
                 }
-                
-                if (resources.length == 0)
-	                writeln ("ERR! msgpack2individual resources.length==0");
-                
-                individual.resources[ predicate ] = resources;
+            } 
+            else 
+            {
+                // writeln("Serialized object is too large!");
             }
-            return cast(int)(ptr - cast(char *)in_str.ptr); //read_element(individual, cast(ubyte[])in_str, dummy);
+
+            return 1;
+            // return cast(int)(ptr - cast(char *)in_str.ptr); //read_element(individual, cast(ubyte[])in_str, dummy);
         }
         catch (Throwable ex)
         {
-            writeln("ERR! msgpack2individual ex=", ex.msg, ", in_str=", in_str);
+            // writeln("ERR! msgpack2individual ex=", ex.msg, ", in_str=", in_str);
             //printPrettyTrace(stderr);
             //throw new Exception("invalid binobj");
             return -1;
