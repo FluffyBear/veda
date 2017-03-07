@@ -72,7 +72,6 @@ v-s:CommentsTemplate
   rdfs:label "Шаблон для отображения комментариев"@ru ;
   v-ui:template """
 <div>
-  <hr>
   <h3 about="v-s:Comments" property="rdfs:label"></h3>
   <div about="@" rel="v-s:hasComment" data-template="v-s:RecursiveCommentTemplate"></div>
   <div id="new-comment"></div>
@@ -153,7 +152,7 @@ v-s:SingleCommentTemplate
     <div property="rdfs:label" class="view -edit -search"></div>
     <veda-control data-type="text" rows="3" property="rdfs:label" class="-view edit -search"></veda-control>
     <em about="v-s:attachment" property="rdfs:label">Вложение</em>
-    <div rel="v-s:attachment" data-template="v-ui:FileTemplate" data-embedded="true"></div>
+    <div rel="v-s:attachment" data-template="v-ui:FileTemplateWithComment" data-embedded="true"></div>
     <veda-control data-type="file" rel="v-s:attachment" class="-view edit -search"></veda-control>
     <em about="v-s:linkedObject" property="rdfs:label">Вложение</em>
     <div rel="v-s:linkedObject" data-template="v-ui:ClassNameLabelLinkTemplate"></div>
@@ -221,7 +220,7 @@ v-s:RecursiveCommentTemplate
         <br>
         <span property="rdfs:label"></span>
       </div>
-      <div rel="v-s:attachment" data-template="v-ui:FileTemplate"></div>
+      <div rel="v-s:attachment" data-template="v-ui:FileTemplateWithComment"></div>
       <div class="linked-object">
         <em about="v-s:linkedObject" property="rdfs:label"></em>
         <ul rel="v-s:linkedObject">
