@@ -391,7 +391,9 @@ v-s:ContractorTemplate
     </div>
 
     <em about="v-s:linkedOrganization" property="rdfs:label"></em>
-    <div about="@" rel="v-s:linkedOrganization" data-template="v-ui:LabelLinkTemplate"></div>
+    <div about="@" rel="v-s:linkedOrganization" data-template="v-ui:LabelLinkTemplate" class="view -edit -search"></div>
+    <veda-control data-type="link" rel="v-s:linkedOrganization" class="-view edit search fulltext"></veda-control>
+      
     <hr class="view -edit -search">
 
     <em about="rdfs:label" property="rdfs:label"></em>
