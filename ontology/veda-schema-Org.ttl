@@ -410,6 +410,9 @@ v-s:OrganizationTemplate
     if (property_uri === "v-s:hasContractorProfile" && (individual.hasValue("v-s:hasContractorProfile") || !hasRights)) {
        $("#add-profile", template).prop("disabled", true);
     }
+     if (property_uri === "v-s:hasContractorProfile" && (individual.hasValue("v-s:hasContractorProfile"))) {
+       $("#add-profile", template).hide();
+    }
     if (!hasRightsRequest) {
        $("#add-ContractorCreateChangeRequest", template).prop("disabled", true);
     }
