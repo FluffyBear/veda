@@ -393,6 +393,11 @@ v-s:OrganizationTemplate
   rdfs:label "Шаблон для класса v-s:Organization"@ru ;
   v-ui:template """
 <script>
+// Права на кнопки старт
+  var _classRequest = new veda.IndividualModel("mnd-s:ContractorCreateChangeRequest");
+  var hasRightsRequest = _classRequest.rights.hasValue("v-s:canCreate", true);
+  var _classSubsidiary = new veda.IndividualModel("v-s:Subsidiary");
+  var hasRightsSubsidiary = _classSubsidiary.rights.hasValue("v-s:canCreate", true);
   var _class = new veda.IndividualModel("v-s:ContractorProfile");
   var hasRights = _class.rights.hasValue("v-s:canCreate", true) && individual.rights.hasValue("v-s:canUpdate", true);
 
@@ -400,18 +405,25 @@ v-s:OrganizationTemplate
   template.one("remove", function () {
     individual.off("individual:propertyModified", handler);
   });
+  
   function handler(property_uri, values) {
     if (property_uri === "v-s:hasContractorProfile" && (individual.hasValue("v-s:hasContractorProfile") || !hasRights)) {
-      $("#add-profile", template).remove();
+       $("#add-profile", template).prop("disabled", true);
+    }
+    if (!hasRightsRequest) {
+       $("#add-ContractorCreateChangeRequest", template).prop("disabled", true);
+    }
+    if (!hasRightsSubsidiary) {
+       $("#add-subsidiary", template).prop("disabled", true);
     }
   }
   handler("v-s:hasContractorProfile", individual["v-s:hasContractorProfile"]);
-
-  var _class = new veda.IndividualModel("v-s:Subsidiary");
-  if ( !_class.rights.hasValue("v-s:canCreate", true) || !individual.rights.hasValue("v-s:canUpdate", true)) {
-    $("#add-subsidiary", template).remove();
-  }
-
+  handler("mnd-s:hasContractorCreateChangeRequest", individual["mnd-s:hasContractorCreateChangeRequest"]);
+  handler("v-s:hasSubsidiary", individual["v-s:hasSubsidiary"]);
+  
+// Права на кнопки конец  
+  
+  
   var prevTaxId = individual.hasValue("v-s:taxId") && individual["v-s:taxId"][0].toString();
 
   // Validation
