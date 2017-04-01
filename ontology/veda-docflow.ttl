@@ -145,7 +145,7 @@ v-df:ApprovalTaskTemplate
 .
 
 
-# -- СТАРТОВЫЕ ФОРМЫ СТАНДРАТНЫХ ЗАДАЧ --
+# -- СТАРТОВЫЕ ФОРМЫ СТАНДАРТНЫХ ЗАДАЧ --
 
 v-df:QuestionRouteStartForm
   rdf:type owl:Class ;
