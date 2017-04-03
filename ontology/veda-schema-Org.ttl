@@ -361,6 +361,8 @@ v-s:taxRegistrationCauseForOrganization
   v-ui:regexp "^[0-9]{9}$";
   rdfs:label "v-s:taxRegistrationCause property specification for v-s:Organization"@en ;
   rdfs:label "Спецификация свойств v-s:taxRegistrationCause для класса v-s:Organization"@ru ;
+  v-ui:tooltip "Числовое значение, 9 символов, например: 123456789"@ru ;
+  v-ui:tooltip "Numeric value, 9 characters, i.e. 123456789"@en ;
 .
 
 # ------------------------------------------------------------ СТРОКИ --
@@ -469,8 +471,8 @@ v-s:OrganizationTemplate
 </script>
 <div class="container sheet">
   <h2>
-    <span about="v-s:Organization" property="rdfs:label"></span>:
-    <span about="@" property="rdfs:label"></span>
+    <span about="v-s:Organization" property="rdfs:label"></span>
+    <small about="@" property="rdfs:label"></small>
   </h2>
   <hr>
   <div id="mainProperties">
@@ -766,8 +768,8 @@ v-s:SubsidiaryTemplate
   v-ui:template """
 <div class="container sheet">
   <h2>
-    <span about="v-s:Subsidiary" property="rdfs:label"></span>:
-    <span about="@" property="rdfs:label"></span>
+    <span about="v-s:Subsidiary" property="rdfs:label"></span>
+    <small about="@" property="rdfs:label"></small>
   </h2>
   <span about="@" data-template="v-ui:RabbitHole"></span>
   <hr>
@@ -838,8 +840,8 @@ v-s:DepartmentTemplate
   v-ui:template """
 <div class="container sheet">
   <h2>
-    <span about="v-s:Department" property="rdfs:label"></span>:
-    <span about="@" property="rdfs:label"></span>
+    <span about="v-s:Department" property="rdfs:label"></span>
+    <small about="@" property="rdfs:label"></small>
   </h2>
   <hr>
   <div id="mainProperties">
