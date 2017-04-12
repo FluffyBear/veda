@@ -40,6 +40,9 @@
         case "drafts":
           self.trigger.apply(self, ["load:drafts"].concat(params));
           break;
+        case "editor":
+          self.trigger.apply(self, ["load:editor"].concat(params));
+          break;
         default:
           if (!params[0]) { params[0] = "#main"; }
           var individual = new veda.IndividualModel(page);

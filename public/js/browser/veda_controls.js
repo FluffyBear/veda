@@ -1696,6 +1696,7 @@
           $(this).off("click");
           var selected = [];
           for (var uri in srch.selected) {
+            alert(uri);
             selected.push( srch.selected[uri] );
           }
           select(selected);

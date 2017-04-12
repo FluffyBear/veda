@@ -9,6 +9,8 @@
 @prefix v-ft: <http://semantic-machines.com/veda/veda-function-tasks/> .
 @prefix d: <http://semantic-machines.com/veda/veda-data/> .
 @prefix cfg: <http://semantic-machines.com/veda/config/> .
+@prefix v-te: <http://semantic-machines.com/veda/veda-editor/> .
+
 
 @prefix v-l: <http://semantic-machines.com/veda/veda-layout/> .
 <http://semantic-machines.com/veda/veda-layout>
@@ -253,6 +255,7 @@ v-l:MainMenu
   v-l:menuItem v-l:Divider ;
   v-l:menuItem v-l:Graph ;
   v-l:menuItem v-l:Tests ;
+  v-l:menuItem v-l:TransformationEditor;
   v-l:menuItem v-l:Divider ;
   v-l:menuItem v-l:Clear ;
   v-l:menuItem v-l:Divider ;
@@ -328,4 +331,10 @@ v-l:Exit
   rdfs:label "Exit"@en ;
   rdfs:label "Выйти"@ru ;
   v-l:staticLink "javascript:veda.logout()"^^xsd:string ;
+.
+v-l:TransformationEditor
+  rdf:type v-l:Menu ;
+  rdfs:label "Transformation editor"@en ;
+  rdfs:label "Редактор трансформаций"@ru ;
+  v-l:objectLink v-te:Editor ;
 .
