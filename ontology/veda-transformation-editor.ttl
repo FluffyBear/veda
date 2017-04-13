@@ -139,7 +139,7 @@ v-te:FunctionTransformTestTemplate
     var uri = $(this).attr("resource");
     var ind = new veda.IndividualModel( uri );
     ind.present(holder, "v-ui:ttl");
-  }) ;
+  });
   //# sourceURL=v-te:FunctionTransformTestTemplate
 </script>
   """
