@@ -105,16 +105,23 @@ v-te:FunctionTransformTestTemplate
 <div class="container sheet">
   <h3 about="@" property="rdfs:label"></h3>
   <hr>
-  <em about="v-te:inputIndividual" property="rdfs:label"></em>
-  <div rel="v-te:inputIndividual" data-template="v-ui:LabelLinkTemplate"></div>
-  <veda-control rel="v-te:inputIndividual" data-type="link" class="fulltext dropdown"></veda-control>
-  <em about="v-te:testedTransform" property="rdfs:label"></em>
-  <veda-control rel="v-te:testedTransform" data-type="link" class="fulltext dropdown"></veda-control>
-  <br>
-  <button id="run-button" class="btn btn-success" about="v-te:RunBundle" property="rdfs:label"></button>
-  <em about="v-te:outputIndividual" property="rdfs:label"></em>
-  <div rel="v-te:outputIndividual">
-    <a href="#/@" property="@"></a>
+  <div class="row">
+    <div class="col-md-6">
+      <em about="v-te:inputIndividual" property="rdfs:label"></em>
+      <ul rel="v-te:inputIndividual">
+        <li property="@"><span property="rdfs:label"></span></li>
+      </ul>
+      <veda-control rel="v-te:inputIndividual" data-type="link" class="fulltext dropdown"></veda-control>
+      <em about="v-te:testedTransform" property="rdfs:label"></em>
+      <veda-control rel="v-te:testedTransform" data-type="link" class="fulltext dropdown"></veda-control>
+      <br>
+      <button id="run-button" class="btn btn-success" about="v-te:RunBundle" property="rdfs:label"></button>
+      <em about="v-te:outputIndividual" property="rdfs:label"></em>
+      <ul rel="v-te:outputIndividual">
+        <li property="@"><span property="rdfs:label"></span></li>
+      </ul>
+    </div>
+    <div id="ttl-view" class="col-md-6"></div>
   </div>
 </div>
 <script>
@@ -126,6 +133,13 @@ v-te:FunctionTransformTestTemplate
     var transform = individual["v-te:testedTransform"][0];
     individual["v-te:outputIndividual"] = veda.Util.applyTransform(individual["v-te:inputIndividual"], transform);
   });
+
+  $("li", template).click(function () {
+    var holder = $("#ttl-view", template).empty();
+    var uri = $(this).attr("resource");
+    var ind = new veda.IndividualModel( uri );
+    ind.present(holder, "v-ui:ttl");
+  }) ;
   //# sourceURL=v-te:FunctionTransformTestTemplate
 </script>
   """
