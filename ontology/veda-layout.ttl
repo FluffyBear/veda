@@ -11,7 +11,6 @@
 @prefix cfg: <http://semantic-machines.com/veda/config/> .
 @prefix v-te: <http://semantic-machines.com/veda/veda-editor/> .
 
-
 @prefix v-l: <http://semantic-machines.com/veda/veda-layout/> .
 <http://semantic-machines.com/veda/veda-layout>
   rdf:type owl:Ontology ;
@@ -255,7 +254,7 @@ v-l:MainMenu
   v-l:menuItem v-l:Divider ;
   v-l:menuItem v-l:Graph ;
   v-l:menuItem v-l:Tests ;
-  v-l:menuItem v-l:TransformationEditor;
+  v-l:menuItem v-l:TransformTest;
   v-l:menuItem v-l:Divider ;
   v-l:menuItem v-l:Clear ;
   v-l:menuItem v-l:Divider ;
@@ -332,9 +331,10 @@ v-l:Exit
   rdfs:label "Выйти"@ru ;
   v-l:staticLink "javascript:veda.logout()"^^xsd:string ;
 .
-v-l:TransformationEditor
+v-l:TransformTest
   rdf:type v-l:Menu ;
-  rdfs:label "Transformation editor"@en ;
-  rdfs:label "Редактор трансформаций"@ru ;
-  v-l:objectLink v-te:Editor ;
+  rdfs:label "Transform test"@en ;
+  rdfs:label "Тест трансформации"@ru ;
+  v-l:objectLink v-te:TransformTest ;
 .
+

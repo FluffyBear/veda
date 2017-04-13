@@ -1970,10 +1970,22 @@ td:PersonTemplate1
   <!--button class="action btn btn-link view edit -search" id="delete" about="v-s:Delete" property="rdfs:label"/-->
   <div about="@" data-template="v-ui:LinkTemplate" data-embedded="true"></div>
   <div class="view -edit -search" about="@" data-template="v-s:CommentsTemplate"></div>
-</div>
 
+  <veda-control rel="v-s:hasClassifierOKVED" data-type="link" class="-view edit search fulltext dropdown"></veda-control>
+</div>
 """ ;
 .
+
+td:PSHasClassifierOKVEDPerson
+  rdf:type v-ui:ObjectPropertySpecification ;
+  rdfs:label "Спецификация v-s:hasClassifierOKVED для класса Персона"@ru ;
+  rdfs:label "v-s:hasClassifierOKVED property specification for Person class"@en ;
+  v-ui:forClass v-s:Person ;
+  v-ui:forProperty v-s:hasClassifierOKVED ;
+  v-ui:rangeRestriction v-wf:Transform ;
+  v-ui:queryPrefix "('rdf:type'==='v-wf:Transform')"^^xsd:string ;
+.
+
 td:PsHasAppointmentPerson
   rdf:type v-ui:ObjectPropertySpecification ;
   rdfs:label "Спецификация назначения для класса Персона"@ru ;
