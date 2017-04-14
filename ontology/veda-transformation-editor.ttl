@@ -131,10 +131,12 @@ v-te:FunctionTransformTestTemplate
   $("#run-button", template).click(function () {
     if ( !individual.hasValue("v-te:testedTransform") || !individual.hasValue("v-te:inputIndividual") ) { return; }
     var transform = individual["v-te:testedTransform"][0];
-    individual["v-te:outputIndividual"] = veda.Util.applyTransform(individual["v-te:inputIndividual"], transform);
+    var input = individual["v-te:inputIndividual"];
+    var output = veda.Util.applyTransform(input, transform);
+    individual["v-te:outputIndividual"] = output;
   });
 
-  $("li", template).click(function () {
+  template.on("click", "li", function () {
     var holder = $("#ttl-view", template).empty();
     var uri = $(this).attr("resource");
     var ind = new veda.IndividualModel( uri );
