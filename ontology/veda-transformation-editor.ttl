@@ -103,23 +103,28 @@ v-te:FunctionTransformTestTemplate
   v-ui:forClass v-te:FunctionTransformTest ;
   v-ui:template """
 <div class="container sheet">
+  <style scoped>
+    #rel-actions {
+      margin: 0px;
+    }
+  </style>
   <h3 about="@" property="rdfs:label"></h3>
   <hr>
   <div class="row">
     <div class="col-md-6">
       <em about="v-te:inputIndividual" property="rdfs:label"></em>
-      <ul rel="v-te:inputIndividual">
-        <li property="@"><span property="rdfs:label"></span></li>
-      </ul>
+      <div rel="v-te:inputIndividual" class="list-group">
+        <a href="@" class="list-group-item"><strong property="rdf:type"></strong><span property="@"></span></a>
+      </div>
       <veda-control rel="v-te:inputIndividual" data-type="link" class="fulltext dropdown"></veda-control>
       <em about="v-te:testedTransform" property="rdfs:label"></em>
       <veda-control rel="v-te:testedTransform" data-type="link" class="fulltext dropdown"></veda-control>
       <br>
       <button id="run-button" class="btn btn-success" about="v-te:RunBundle" property="rdfs:label"></button>
       <em about="v-te:outputIndividual" property="rdfs:label"></em>
-      <ul rel="v-te:outputIndividual">
-        <li property="@"><span property="rdfs:label"></span></li>
-      </ul>
+      <div rel="v-te:outputIndividual" class="list-group">
+        <a href="@" class="list-group-item"><strong property="rdf:type"></strong><span property="@"></span></a>
+      </div>
     </div>
     <div id="ttl-view" class="col-md-6"></div>
   </div>
@@ -131,14 +136,22 @@ v-te:FunctionTransformTestTemplate
   $("#run-button", template).click(function () {
     if ( !individual.hasValue("v-te:testedTransform") || !individual.hasValue("v-te:inputIndividual") ) { return; }
     var transform = individual["v-te:testedTransform"][0];
-    var input = individual["v-te:inputIndividual"];
-    var output = veda.Util.applyTransform(input, transform);
-    individual["v-te:outputIndividual"] = output;
+    var inputIndividual = individual["v-te:inputIndividual"];
+    var input = inputIndividual.map(function (individual) {
+      return individual.properties;
+    });
+    var output = veda.Util.applyTransform(input, transform.properties);
+    var outputIndividual = output.map(function (properties) {
+      return new veda.IndividualModel(properties);
+    });
+    individual["v-te:outputIndividual"] = outputIndividual;
   });
-
-  template.on("click", "li", function () {
+  template.on("click", ".list-group > a", function (e) {
+    e.preventDefault();
+    $(".list-group > a", template).removeClass("active");
+    $(this).addClass("active");
     var holder = $("#ttl-view", template).empty();
-    var uri = $(this).attr("resource");
+    var uri = $(this).attr("href");
     var ind = new veda.IndividualModel( uri );
     ind.present(holder, "v-ui:ttl");
   });
