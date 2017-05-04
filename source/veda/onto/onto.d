@@ -161,7 +161,7 @@ class Onto
         if (trace_msg[ 20 ] == 1)
             log.trace_log_and_console("[%s] load onto..", context.get_name);
 
-        context.reopen_ro_subject_storage_db();
+        context.reopen_ro_individuals_storage_db();
         context.reopen_ro_fulltext_indexer_db();
 
         Ticket       sticket = context.sys_ticket();
@@ -201,7 +201,7 @@ class Onto
         bool   is_class = false;
         bool   is_prop  = false;
 
-        bool   is_deleted = indv.isExists("v-s:deleted", true);
+        bool   is_deleted = indv.exists("v-s:deleted", true);
 
         if (is_deleted)
         {
@@ -303,7 +303,8 @@ class Onto
         foreach (elementz; list)
         {
             superelementes[ elementz.uri ] = true;
-            prepare_superelements(parent_predicate, elh, superelementes, elementes, elementz.uri, level + 1);
+            if (elementz.uri != look_cl)
+	            prepare_superelements(parent_predicate, elh, superelementes, elementes, elementz.uri, level + 1);
         }
     }
 }
