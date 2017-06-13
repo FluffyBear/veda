@@ -117,9 +117,8 @@ interface Context
     public VQL get_vql();
     public Authorization acl_indexes();
 
-    public OpResult add_to_transaction(ref Transaction tnx, Ticket *ticket, INDV_OP cmd, Individual *indv, bool prepare_events, string event_id,
-                                       bool ignore_freeze,
-                                       bool is_api_request);
+    public OpResult update(long tnx_id, Ticket *ticket, INDV_OP cmd, Individual *indv, bool prepare_events, string event_id,
+                           OptFreeze opt_freeze, OptAuthorize opt_request);
 
     public Individual[] get_individuals_via_query(Ticket *ticket, string query_str, bool inner_get = false, int top = 10, int limit = 10000);
 
@@ -136,17 +135,6 @@ interface Context
                 экземпляр структуры Ticket
      */
     //public Ticket authenticate(string login, string password);
-
-    /**
-       Доверенная аутентификация
-       Params:
-                ticket = имя пользователя, входящего в группу [cfg:SuperUser]
-                login = имя пользователя, кому будет выдан новый тикет
-
-       Returns:
-                экземпляр структуры Ticket
-     */
-    Ticket get_ticket_trusted(string ticket, string login);
 
     /**
        Вернуть обьект Ticket по Id
@@ -230,27 +218,20 @@ interface Context
                 Код результата операции
      */
     public OpResult put_individual(Ticket *ticket, string uri, Individual individual, bool prepareEvents, string event_id, long transaction_id,
-                                   bool ignore_freeze = false,
-                                   bool is_api_request = true);
+                                   OptFreeze opt_freeze = OptFreeze.NONE, OptAuthorize opt_request = OptAuthorize.YES);
 
-    public OpResult remove_individual(Ticket *ticket, string uri, bool prepareEvents, string event_id, long transaction_id, bool ignore_freeze =
-                                          false,
-                                      bool is_api_request = true);
+    public OpResult remove_individual(Ticket *ticket, string uri, bool prepareEvents, string event_id, long transaction_id, OptFreeze opt_freeze = OptFreeze.NONE,
+                                      OptAuthorize opt_request = OptAuthorize.YES);
 
     public OpResult add_to_individual(Ticket *ticket, string uri, Individual individual, bool prepareEvents, string event_id, long transaction_id,
-                                      bool ignore_freeze =
-                                          false,
-                                      bool is_api_request = true);
+                                      OptFreeze opt_freeze = OptFreeze.NONE, OptAuthorize opt_request = OptAuthorize.YES);
 
     public OpResult set_in_individual(Ticket *ticket, string uri, Individual individual, bool prepareEvents, string event_id, long transaction_id,
-                                      bool ignore_freeze =
-                                          false,
-                                      bool is_api_request = true);
+                                      OptFreeze opt_freeze = OptFreeze.NONE, OptAuthorize opt_request = OptAuthorize.YES);
 
     public OpResult remove_from_individual(Ticket *ticket, string uri, Individual individual, bool prepareEvents, string event_id,
                                            long transaction_id,
-                                           bool ignore_freeze = false,
-                                           bool is_api_request = true);
+                                           OptFreeze opt_freeze = OptFreeze.NONE, OptAuthorize opt_request = OptAuthorize.YES);
 
     // ////////////////////////////////////////////// AUTHORIZATION ////////////////////////////////////////////
     /**
@@ -273,7 +254,7 @@ interface Context
                  trace_acl  = функция делегат, собирающая результат выполнения функции
      */
     public void get_rights_origin_from_acl(Ticket *ticket, string uri,
-                                           void delegate(string resource_group, string subject_group, string right) trace_acl);
+                                           void delegate(string resource_group, string subject_group, string right) trace_acl, void delegate(string log) trace_info);
 
     /**
        Вернуть список групп в которые входит индивид указанный по uri, список представляет собой индивид
