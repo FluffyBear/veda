@@ -1986,9 +1986,9 @@ td:PersonTemplateProfile
         $("#upload-new", template).click(function (e) {
           template.find("input[type='file']").click();
         });
-        individual.on("individual:propertyModified", handler);
+        individual.on("propertyModified", handler);
         template.one("remove", function () {
-          individual.off("individual:propertyModified", handler);
+          individual.off("propertyModified", handler);
         });
         function handler(property_uri) {
           if (property_uri === "v-s:hasImage") {
