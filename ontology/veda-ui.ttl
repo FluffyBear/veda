@@ -2177,10 +2177,17 @@ td:PersonTemplateMyAspect
         <hr>
         <!--em about="v-s:hasPersonalAspectBlank" property="rdfs:label" class="margin-sm"></em>
         <span rel="v-s:hasPersonalAspectBlank" class="view edit search" data-template="v-ui:LabelTemplate"></span-->
-        <div about="@" rel="v-s:hasPersonalAspect" data-embedded="true">
-          <veda-control data-type="link" rel="v-s:hasPersonalAspectBlank" class="-view edit search fulltext dropdown"></veda-control>
-          <div rel="v-s:hasPersonalAspectBlank">
-            <a href="#/@" class="btn btn-success btn-lg btn-block margin-lg" about="@" property="rdfs:label" style="white-space: normal;"></a>
+        
+        <div about="@" rel="v-ui:hasPreferences" data-embedded="true">
+          <veda-control rel="v-s:hasPersonalAspect" data-type="link" class="-view edit -search create"></veda-control>
+          
+          <div  rel="v-s:hasPersonalAspect" data-embedded="true">
+            <div>
+              <veda-control data-type="link" rel="v-s:hasPersonalAspectBlank" class="-view edit search fulltext dropdown"></veda-control>
+              <div rel="v-s:hasPersonalAspectBlank">
+                <a href="#/@" class="btn btn-success btn-lg btn-block margin-lg" about="@" property="rdfs:label" style="white-space: normal;"></a>
+              </div>
+            </div>
           </div>
         </div>
       </div>
