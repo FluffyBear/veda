@@ -6,7 +6,8 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix td: <http://semantic-machines.com/veda/test-data/> .
 @prefix d: <http://semantic-machines.com/veda/veda-data/> .
-
+@prefix v-fs: <http://semantic-machines.com/veda/veda-search/> .
+@prefix v-fc: <http://semantic-machines.com/veda/veda-function-create/> .
 @prefix v-ui: <http://semantic-machines.com/veda/veda-ui/> .
 <http://semantic-machines.com/veda/veda-ui>
   rdf:type owl:Ontology ;
@@ -2094,7 +2095,71 @@ td:PersonTemplateMyTasks
 <div about="v-ft:Inbox" data-template="v-ft:FunctionTasksTemplate"></div>
 """ ;
 .
+# --------------- User profil ------------------
+v-s:hasPersonalAspect
+  rdf:type owl:Class ;
+  rdfs:label "Личный аспект"@en ;
+  rdfs:label "Personal aspect"@ru ;
+  rdfs:domain v-s:Person ;
+  rdfs:range v-s:PersonalAspect ;
+.
 
+v-s:PersonalAspect
+  rdf:type owl:Class ;
+  rdfs:label "Личный аспект"@en ;
+  rdfs:label "Personal aspect"@ru ;
+  rdfs:subClassOf v-ui:Preferences ;
+.
+
+v-s:hasPersonalAspectBlank
+  rdf:type owl:ObjectProperty ;
+  rdfs:domain v-s:PersonalAspect ;
+  rdfs:label "Бланки создания"@en ;
+  rdfs:label "Бланки создания"@ru ;
+  rdfs:range v-fc:Blank ; 
+.
+
+v-s:hasPersonalAspectRegistry
+  rdf:type owl:ObjectProperty ;
+  rdfs:domain v-s:PersonalAspect ;
+  rdfs:label "Бланки поиска"@en ;
+  rdfs:label "Бланки поиска"@ru ;
+  rdfs:range v-fs:AttributiveSearch ; 
+.
+
+v-s:hasPersonalAspectReport
+  rdf:type owl:ObjectProperty ;
+  rdfs:domain v-s:PersonalAspect ;
+  rdfs:label "Бланки отчетов"@en ;
+  rdfs:label "Бланки отчетов"@ru ;
+  rdfs:range v-fc:Blank ; 
+.
+
+v-s:PS_PersonalAspectBlank_Person
+  rdf:type v-ui:ObjectPropertySpecification ;
+  v-ui:forClass v-s:PersonalAspect ;
+  v-ui:forProperty v-s:hasPersonalAspectBlank ;
+  v-ui:maxCardinality 100 ;
+  v-ui:minCardinality 0 ;
+  v-ui:queryPrefix "('rdf:type'==='v-fc:Blank' && 'v-fc:hasFormBlank'==='v-fc:FormBlankCreate')"^^xsd:string ;
+.
+
+v-s:PS_PersonalAspectRegistry_Person
+  rdf:type v-ui:ObjectPropertySpecification ;
+  v-ui:forClass v-s:PersonalAspect ;
+  v-ui:forProperty v-s:hasPersonalAspectRegistry ;
+  v-ui:maxCardinality 100 ;
+  v-ui:minCardinality 0 ;
+.
+
+v-s:PS_PersonalAspectReport_Person
+  rdf:type v-ui:ObjectPropertySpecification ;
+  v-ui:forClass v-s:PersonalAspect ;
+  v-ui:forProperty v-s:hasPersonalAspectReport ;
+  v-ui:maxCardinality 100 ;
+  v-ui:minCardinality 0 ;
+  v-ui:queryPrefix "('rdf:type'==='v-fc:Blank' && 'v-fc:hasFormBlank'==='v-fc:FormBlankCreate')"^^xsd:string ;
+.
 
 
 
@@ -2110,8 +2175,13 @@ td:PersonTemplateMyAspect
       <div class="container-fluid">
         <h4 class="text-center" style="text-transform: uppercase"><i class="fa fa-file-text-o"></i> <span about="v-s:Blanks" property="rdfs:label"></span></h4>
         <hr>
-        <div about="@" rel="v-s:hasBlank">
-          <a href="#/@" class="btn btn-success btn-lg btn-block margin-lg" about="@" property="rdfs:label" style="white-space: normal;"></a>
+        <!--em about="v-s:hasPersonalAspectBlank" property="rdfs:label" class="margin-sm"></em>
+        <span rel="v-s:hasPersonalAspectBlank" class="view edit search" data-template="v-ui:LabelTemplate"></span-->
+        <div about="@" rel="v-s:hasPersonalAspect" data-embedded="true">
+          <veda-control data-type="link" rel="v-s:hasPersonalAspectBlank" class="-view edit search fulltext dropdown"></veda-control>
+          <div rel="v-s:hasPersonalAspectBlank">
+            <a href="#/@" class="btn btn-success btn-lg btn-block margin-lg" about="@" property="rdfs:label" style="white-space: normal;"></a>
+          </div>
         </div>
       </div>
     </div>
@@ -2119,8 +2189,11 @@ td:PersonTemplateMyAspect
       <div class="container-fluid">
         <h4 class="text-center" style="text-transform: uppercase"><i class="fa fa-table"></i> <span about="v-s:Registries" property="rdfs:label"></span></h4>
         <hr>
-        <div about="@" rel="v-s:hasRegistry">
-          <a href="#/@" class="btn btn-info btn-lg btn-block margin-lg" about="@" property="rdfs:label" style="white-space: normal;"></a>
+        <div rel="v-s:hasPersonalAspect" data-embedded="true">
+          <veda-control data-type="link" rel="v-s:hasPersonalAspectRegistry" class="-view edit search fulltext dropdown"></veda-control>
+          <div rel="v-s:hasPersonalAspectRegistry">
+            <a href="#/@" class="btn btn-info btn-lg btn-block margin-lg" about="@" property="rdfs:label" style="white-space: normal;"></a>
+          </div>
         </div>
       </div>
     </div>
@@ -2128,13 +2201,24 @@ td:PersonTemplateMyAspect
       <div class="container-fluid">
         <h4 class="text-center" style="text-transform: uppercase"><i class="fa fa-bar-chart"></i> <span about="v-s:Reports" property="rdfs:label"></span></h4>
         <hr>
-        <div about="@" rel="v-s:hasReport">
-          <a href="#/@" class="btn btn-warning btn-lg btn-block margin-lg" about="@" property="rdfs:label" style="white-space: normal;"></a>
+        <div rel="v-s:hasPersonalAspect" data-embedded="true">
+          <veda-control data-type="link" rel="v-s:hasPersonalAspectReport" class="-view edit search fulltext dropdown"></veda-control>
+          <div rel="v-s:hasPersonalAspectReport">
+            <a href="#/@" class="btn btn-warning btn-lg btn-block margin-lg" about="@" property="rdfs:label" style="white-space: normal;"></a>
+          </div>
         </div>
       </div>
     </div>
   </div>
+  <br>
+  <hr>
+  <div class="actions view edit -search">
+    <button type="button" class="action btn btn-primary view -edit -search" id="edit" about="v-s:Edit" property="rdfs:label" />
+    <button type="button" class="action btn btn-success -view edit -search" id="save" about="v-s:Save" property="rdfs:label" />
+    <button type="button" class="action btn btn-default -view edit -search" id="cancel" about="v-s:Cancel" property="rdfs:label" />
+  </div>
 </div>
+
 """ ;
 .
 
