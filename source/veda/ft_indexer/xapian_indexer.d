@@ -1,5 +1,5 @@
 /**
- * XAPIAN indexer thread
+ * XAPIAN ft indexer
  */
 
 module veda.ft_indexer.xapian_indexer;
@@ -244,18 +244,38 @@ public class IndexerContext
 
                 Resources types = indv.getResources(rdf__type);
 
+                Resources prev_types  = prev_indv.getResources(rdf__type);
+                string    prev_dbname = "base";
+                foreach (_type; prev_types)
+                {
+                    prev_dbname = iproperty.get_dbname_of_class(_type.uri);
+                    if (prev_dbname != "base")
+                        break;
+                }
+
+                string uuid = "uid_" ~ to_lower_and_replace_delimeters(indv.uri);
+
                 // используем информацию о типе, для определения, в какой базе следует проводить индексацию
                 string dbname = "base";
                 foreach (_type; types)
                 {
                     if (_type.uri == "vdi:ClassIndex")
-                    {
                         iproperty.add_schema_data(indv);
-                    }
 
                     dbname = iproperty.get_dbname_of_class(_type.uri);
                     if (dbname != "base")
                         break;
+                }
+
+                if (prev_dbname != dbname)
+                {
+                    log.trace("[%s] prev_db[%s] != new_db[%s]", indv.uri, prev_dbname, dbname);
+                    log.trace("[%s] remove from [%s]", indv.uri, prev_dbname);
+
+                    if (prev_dbname == "system")
+                        indexer_system_db.delete_document(uuid.ptr, uuid.length, &err);
+                    else
+                        indexer_base_db.delete_document(uuid.ptr, uuid.length, &err);
                 }
 
                 if (dbname == "not-indexed")
@@ -272,6 +292,13 @@ public class IndexerContext
 
                     string p_text_ru = "";
                     string p_text_en = "";
+
+                    void    doc_add_text_value(int l_slot, string data, byte *err)
+                    {
+                        if (data.length > 16)
+                            data = data[ 0..16 ];
+                        doc.add_value(l_slot, data.ptr, data.length, err);
+                    }
 
                     void index_double(string predicate, Resource oo)
                     {
@@ -359,7 +386,7 @@ public class IndexerContext
                                 log.trace("index [DataType.Uri] :[%s], prefix=%s[%s]", data, prefix, predicate);
                             indexer.index_text(data.ptr, data.length, prefix.ptr, prefix.length, &err);
 
-                            doc.add_value(slot_L1, oo.literal.ptr, oo.literal.length, &err);
+                            //doc.add_value(slot_L1, oo.literal.ptr, oo.literal.length, &err);
 
                             all_text.write(data);
                             all_text.write('|');
@@ -390,7 +417,7 @@ public class IndexerContext
                                       predicate);
 
                         indexer.index_text(data.ptr, data.length, prefix.ptr, prefix.length, &err);
-                        doc.add_value(slot_L1, oo.literal.ptr, oo.literal.length, &err);
+                        doc_add_text_value(slot_L1, oo.literal, &err);
 
                         all_text.write(data);
                         all_text.write('|');
@@ -616,7 +643,7 @@ public class IndexerContext
                             if (trace_msg[ 220 ] == 1)
                                 log.trace("index as ru text:[%s]", p_text_ru);
 
-                            doc.add_value(slot_L1, p_text_ru.ptr, p_text_ru.length, &err);
+                            doc_add_text_value(slot_L1, p_text_ru, &err);
                             //writeln ("slot:", slot_L1, ", value:", p_text_ru);
                         }
 
@@ -630,7 +657,7 @@ public class IndexerContext
                             if (trace_msg[ 220 ] == 1)
                                 log.trace("index as en text:[%s]", p_text_en);
 
-                            doc.add_value(slot_L1, p_text_en.ptr, p_text_en.length, &err);
+                            doc_add_text_value(slot_L1, p_text_en, &err);
                             //writeln ("slot:", slot_L1, ", value:", p_text_en);
                         }
                     }
@@ -652,7 +679,7 @@ public class IndexerContext
                                     sp = false;
                                 }
 
-                                doc.add_value(slot_L1, oo.literal.ptr, oo.literal.length, &err);
+                                doc_add_text_value(slot_L1, oo.literal, &err);
                                 indexer.index_text(oo.literal.ptr, oo.literal.length, prefix.ptr, prefix.length, &err);
 
                                 if (trace_msg[ 220 ] == 1)
@@ -678,7 +705,7 @@ public class IndexerContext
                                     sp = false;
                                 }
 
-                                doc.add_value(slot_L1, oo.literal.ptr, oo.literal.length, &err);
+                                doc_add_text_value(slot_L1, oo.literal, &err);
                                 indexer.index_text(oo.literal.ptr, oo.literal.length, prefix.ptr, prefix.length, &err);
 
                                 if (trace_msg[ 220 ] == 1)
@@ -739,7 +766,6 @@ public class IndexerContext
                 if (trace_msg[ 221 ] == 1)
                     log.trace("index all text [%s]", data);
 
-                string uuid = "uid_" ~ to_lower_and_replace_delimeters(indv.uri);
                 doc.add_boolean_term(uuid.ptr, uuid.length, &err);
                 doc.set_data(indv.uri.ptr, indv.uri.length, &err);
 

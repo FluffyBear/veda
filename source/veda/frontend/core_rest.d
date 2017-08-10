@@ -6,7 +6,7 @@ import vibe.d, vibe.core.core, vibe.core.log, vibe.core.task, vibe.inet.mimetype
 import properd, TrailDB;
 import veda.common.type, veda.core.common.context, veda.core.common.know_predicates, veda.core.common.define, veda.core.common.log_msg;
 import veda.onto.onto, veda.onto.individual, veda.onto.resource, veda.onto.lang, veda.frontend.individual8vjson;
-import veda.frontend.cbor8vjson;
+import veda.frontend.cbor8vjson, veda.util.queue;
 
 // ////// Logger ///////////////////////////////////////////
 import veda.common.logger;
@@ -19,7 +19,8 @@ veda.common.logger.Logger log()
 }
 // ////// ////// ///////////////////////////////////////////
 
-short               http_port = 8080;
+public short        http_port         = 8080;
+public bool         is_external_users = false;
 
 public const string veda_schema__File          = "v-s:File";
 public const string veda_schema__fileName      = "v-s:fileName";
@@ -204,7 +205,7 @@ class VedaStorageRest : VedaStorageRest_API
 
         if (uri.length > 3 && _ticket !is null)
         {
-            Ticket     *ticket = context.get_ticket(_ticket);
+            Ticket     *ticket = get_ticket(context, _ticket);
 
             Individual file_info;
 
@@ -237,7 +238,11 @@ class VedaStorageRest : VedaStorageRest_API
                     //log.trace("@v originFileName=%s", originFileName);
                     //log.trace("@v getMimeTypeForFile(originFileName)=%s", getMimeTypeForFile(originFileName));
 
-                    string ss = "attachment; filename*=UTF-8''" ~ encode(originFileName);
+                    string encoded_originFileName = encode(originFileName);
+
+                    encoded_originFileName = encoded_originFileName.replace(",", " ");
+
+                    string ss = "attachment; filename*=UTF-8''" ~ encoded_originFileName;
 
                     res.headers[ "Content-Disposition" ] = ss;
 
@@ -266,7 +271,7 @@ class VedaStorageRest : VedaStorageRest_API
 
         try
         {
-            ticket = context.get_ticket(_ticket);
+            ticket = get_ticket(context, _ticket);
 
             if (ticket.result != ResultCode.OK)
                 throw new HTTPStatusException(ticket.result);
@@ -307,7 +312,7 @@ class VedaStorageRest : VedaStorageRest_API
 
         try
         {
-            ticket = context.get_ticket(_ticket);
+            ticket = get_ticket(context, _ticket);
             if (ticket.result != ResultCode.OK)
                 throw new HTTPStatusException(ticket.result);
 
@@ -345,7 +350,7 @@ class VedaStorageRest : VedaStorageRest_API
         {
             Individual[] res;
 
-            ticket = context.get_ticket(_ticket);
+            ticket = get_ticket(context, _ticket);
             if (ticket.result != ResultCode.OK)
                 throw new HTTPStatusException(ticket.result);
 
@@ -430,10 +435,24 @@ class VedaStorageRest : VedaStorageRest_API
                 if (type_msg != "ticket")
                     throw new HTTPStatusException(ResultCode.Not_Authorized);
 
+                ticket.user_uri = jres[ "user_uri" ].get!string;
+
                 ticket.end_time = jres[ "end_time" ].get!long;
                 ticket.id       = jres[ "id" ].get!string;
-                ticket.user_uri = jres[ "user_uri" ].get!string;
                 ticket.result   = cast(ResultCode)jres[ "result" ].get!long;
+
+                if (is_external_users)
+                {
+                    log.trace("authenticate:check external user (%s)", ticket.user_uri);
+                    Individual user = context.get_individual(&ticket, ticket.user_uri);
+                    if (user.exists("v-s:origin", Resource("External User")) == false)
+                    {
+                        log.trace("ERR! authenticate:user (%s) is not external", ticket.user_uri);
+                        ticket = Ticket.init;
+                        throw new HTTPStatusException(ResultCode.Not_Authorized);
+                    }
+                    external_users_ticket_id[ ticket.user_uri ] = true;
+                }
 
                 //log.trace("new ticket= '%s'", ticket);
             }
@@ -630,7 +649,7 @@ class VedaStorageRest : VedaStorageRest_API
 
         try
         {
-            ticket = context.get_ticket(ticket_id);
+            ticket = get_ticket(context, ticket_id);
             rc     = ticket.result;
 
             if (rc != ResultCode.OK)
@@ -673,7 +692,7 @@ class VedaStorageRest : VedaStorageRest_API
 
         try
         {
-            ticket = context.get_ticket(_ticket);
+            ticket = get_ticket(context, _ticket);
             rc     = ticket.result;
 
             if (rc != ResultCode.OK)
@@ -712,7 +731,7 @@ class VedaStorageRest : VedaStorageRest_API
         Ticket     *ticket;
         try
         {
-            ticket = context.get_ticket(_ticket);
+            ticket = get_ticket(context, _ticket);
             rc     = ticket.result;
             if (rc != ResultCode.OK)
                 return res;
@@ -755,6 +774,10 @@ class VedaStorageRest : VedaStorageRest_API
         }
     }
 
+    Consumer     cs0;
+    Queue        main_queue;
+    const string queue_state_prefix = "srv:queue-state-";
+
     Json get_individual(string _ticket, string uri, bool reopen = false)
     {
         ulong      timestamp = Clock.currTime().stdTime() / 10;
@@ -765,7 +788,7 @@ class VedaStorageRest : VedaStorageRest_API
 
         try
         {
-            ticket = context.get_ticket(_ticket);
+            ticket = get_ticket(context, _ticket);
             rc     = ticket.result;
 
             if (rc != ResultCode.OK)
@@ -773,6 +796,52 @@ class VedaStorageRest : VedaStorageRest_API
 
             try
             {
+                long ppos = uri.indexOf(queue_state_prefix);
+                if (ppos == 0)
+                {
+                    string queue_name = uri[ queue_state_prefix.length..$ ];
+                    log.trace("%s queue_name=%s", queue_state_prefix, queue_name);
+                    //if (main_queue is null)
+                    {
+                        main_queue = new Queue(queue_db_path, main_queue_name, Mode.R, log);
+                        if (main_queue.open())
+                        {
+                            cs0 = new Consumer(main_queue, queue_db_path, queue_name, Mode.R, log);
+                            if (!cs0.open())
+                            {
+                                rc = ResultCode.Invalid_Identifier;
+                                return res;
+                            }
+                        }
+                    }
+
+                    // TODO: ? возможно для скорости следует переделать get_info на rawRead
+                    main_queue.get_info();
+                    cs0.get_info();
+
+                    Individual indv_res;
+                    indv_res.uri = uri;
+
+                    indv_res.addResource(rdf__type, Resource(DataType.Uri, "v-s:AppInfo"));
+
+                    indv_res.addResource("v-s:created", Resource(DataType.Datetime, Clock.currTime().toUnixTime()));
+                    indv_res.addResource("srv:queue", Resource(DataType.Uri, "srv:" ~ queue_name));
+                    indv_res.addResource("srv:total_count", Resource(DataType.Integer, main_queue.count_pushed));
+                    indv_res.addResource("srv:current_count", Resource(DataType.Integer, cs0.count_popped));
+
+                    res = individual_to_json(indv_res);
+
+                    rc = ResultCode.OK;
+
+                    cs0.close();
+                    cs0 = null;
+
+                    main_queue.close();
+                    main_queue = null;
+
+                    return res;
+                }
+
                 Individual[ string ] onto_individuals =
                     context.get_onto_as_map_individuals();
 
@@ -831,7 +900,7 @@ class VedaStorageRest : VedaStorageRest_API
 
         try
         {
-            ticket = context.get_ticket(_ticket);
+            ticket = get_ticket(context, _ticket);
             rc     = ticket.result;
 
             if (rc != ResultCode.OK)
@@ -871,7 +940,7 @@ class VedaStorageRest : VedaStorageRest_API
         Ticket     *ticket;
         ResultCode rc = ResultCode.Internal_Server_Error;
 
-        ticket = context.get_ticket(_ticket);
+        ticket = get_ticket(context, _ticket);
         rc     = ticket.result;
 
         if (rc != ResultCode.OK)
@@ -895,7 +964,7 @@ class VedaStorageRest : VedaStorageRest_API
         Ticket     *ticket;
         ResultCode rc = ResultCode.Internal_Server_Error;
 
-        ticket = context.get_ticket(_ticket);
+        ticket = get_ticket(context, _ticket);
         rc     = ticket.result;
 
         if (rc != ResultCode.OK)
@@ -912,7 +981,7 @@ class VedaStorageRest : VedaStorageRest_API
         Ticket     *ticket;
         ResultCode rc = ResultCode.Internal_Server_Error;
 
-        ticket = context.get_ticket(_ticket);
+        ticket = get_ticket(context, _ticket);
         rc     = ticket.result;
 
         if (rc != ResultCode.OK)
@@ -933,7 +1002,7 @@ class VedaStorageRest : VedaStorageRest_API
         Ticket     *ticket;
         ResultCode rc = ResultCode.Internal_Server_Error;
 
-        ticket = context.get_ticket(_ticket);
+        ticket = get_ticket(context, _ticket);
         rc     = ticket.result;
 
         if (rc != ResultCode.OK)
@@ -954,7 +1023,7 @@ class VedaStorageRest : VedaStorageRest_API
         Ticket     *ticket;
         ResultCode rc = ResultCode.Internal_Server_Error;
 
-        ticket = context.get_ticket(_ticket);
+        ticket = get_ticket(context, _ticket);
         rc     = ticket.result;
 
         if (rc != ResultCode.OK)
@@ -1047,11 +1116,12 @@ void trail(string ticket_id, string user_id, string action, Json args, string re
 }
 
 //////////////////////////////////////////////////////////////////// ws-server-transport
-private OpResult[] modify_individuals(Context context, string cmd, string _ticket, Json[] individuals_json, bool prepare_events, string event_id, ulong start_time)
+private OpResult[] modify_individuals(Context context, string cmd, string _ticket, Json[] individuals_json, bool prepare_events, string event_id,
+                                      ulong start_time)
 {
     OpResult[] op_res;
 
-    Ticket     *ticket = context.get_ticket(_ticket);
+    Ticket     *ticket = get_ticket(context, _ticket);
 
     if (ticket.result != ResultCode.OK)
         throw new HTTPStatusException(ticket.result, text(ticket.result));
@@ -1153,6 +1223,36 @@ private OpResult[] parseOpResults(string str)
     }
 
     return ress;
+}
+
+private bool[ string ] external_users_ticket_id;
+
+private Ticket *get_ticket(Context context, string ticket_id)
+{
+    Ticket *ticket = context.get_ticket(ticket_id);
+
+    if (ticket.result == ResultCode.OK && is_external_users)
+    {
+        log.trace("check external user (%s)", ticket.user_uri);
+
+        if (external_users_ticket_id.get(ticket_id, false) == false)
+        {
+            Individual user = context.get_individual(ticket, ticket.user_uri);
+            if (user.exists("v-s:origin", Resource("External User")) == false)
+            {
+                log.trace("ERR! user (%s) is not external", ticket.user_uri);
+                ticket.id     = "?";
+                ticket.result = ResultCode.Not_Authorized;
+            }
+            else
+            {
+                log.trace("user is external (%s)", ticket.user_uri);
+                external_users_ticket_id[ ticket.user_uri ] = true;
+            }
+        }
+    }
+
+    return ticket;
 }
 
 private Task wsc_server_task;

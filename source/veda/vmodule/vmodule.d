@@ -45,46 +45,51 @@ class VedaModule
 
     Cache!(string, string) cache_of_indv;
 
-    ModuleInfoFile module_info;
+    ModuleInfoFile       module_info;
 
-    long           op_id           = 0;
-    long           committed_op_id = 0;
+    long                 op_id           = 0;
+    long                 committed_op_id = 0;
 
-    long           count_signal           = 0;
-    long           count_readed           = 0;
-    long           count_success_prepared = 0;
+    long                 count_signal           = 0;
+    long                 count_readed           = 0;
+    long                 count_success_prepared = 0;
 
-    string         main_queue_name = "individuals-flow";
-    Queue          main_queue;
-    Consumer       main_cs;
-    Consumer       main_cs_prefetch;
+    string               main_queue_name = "individuals-flow";
+    Queue                main_queue;
+    Consumer[]           main_cs;
+    Consumer             main_cs_prefetch;
 
-    string         prepareall_queue_name;
-    Queue          prepareall_queue;
-    Consumer       prepareall_cs;
+    Queue                prepare_batch_queue;
+    Consumer             prepare_batch_cs;
 
-    Context        context;
-    Onto           onto;
+    Context              context;
+    Onto                 onto;
 
-    Individual     node;
+    Individual           node;
 
-    string         main_module_url = "tcp://127.0.0.1:9112\0";
-    Ticket         sticket;
-    string         message_header;
-    string         module_id;
-
+    string               main_module_url = "tcp://127.0.0.1:9112\0";
+    Ticket               sticket;
+    string               message_header;
+    string               module_id;
+    int delegate(string) priority;
     bool[ string ]   subsrc;
 
     Logger log;
 
+    int basic_priority(string user_uri)
+    {
+        return 0;
+    }
+
     this(string _module_id, Logger in_log)
     {
-        module_id             = _module_id.replace("-", "_");
-        process_name          = text(module_id);
-        prepareall_queue_name = process_name ~ "_prepare_all";
-        message_header        = "MSG:" ~ module_id ~ ":";
-        _log                  = in_log;
-        log                   = _log;
+        priority       = &basic_priority;
+        module_id      = _module_id.replace("-", "_");
+        process_name   = text(module_id);
+        message_header = "MSG:" ~ module_id ~ ":";
+        _log           = in_log;
+        log            = _log;
+        main_cs.length = 1;
     }
 
     ~this()
@@ -92,16 +97,26 @@ class VedaModule
         delete module_info;
     }
 
-    private void open_perapareall_queue()
+    private void open_perapare_batch_queue(bool is_open_exists_batch)
     {
+//       exists(R)(R name)
         // attempt open [prepareall] queue
-        prepareall_queue = new Queue(queue_db_path, prepareall_queue_name, Mode.R, log);
-        prepareall_queue.open();
+        prepare_batch_queue = new Queue(uris_db_path, "uris-db", Mode.R, log);
+        prepare_batch_queue.open();
 
-        if (prepareall_queue.isReady)
+        if (prepare_batch_queue.isReady)
         {
-            prepareall_cs = new Consumer(prepareall_queue, queue_db_path, process_name, log);
-            prepareall_cs.open();
+            prepare_batch_cs = new Consumer(prepare_batch_queue, tmp_path, process_name, Mode.RW, log);
+            if (!prepare_batch_cs.open(is_open_exists_batch))
+            {
+                log.trace("not found uncompleted batch");
+                prepare_batch_queue.close();
+                prepare_batch_queue = null;
+
+                prepare_batch_cs = null;
+            }
+            else
+                log.trace("found uncompleted batch");
         }
     }
 
@@ -143,14 +158,17 @@ class VedaModule
             main_queue.open();
         }
 
-        main_cs = new Consumer(main_queue, queue_db_path, process_name, log);
-        main_cs.open();
+        for (int i = 0; i < main_cs.length; i++)
+        {
+            main_cs[ i ] = new Consumer(main_queue, queue_db_path, process_name ~ text(i), Mode.RW, log);
+            main_cs[ i ].open();
+        }
 
-        main_cs_prefetch = new Consumer(main_queue, queue_db_path, process_name ~ "_prefetch", log);
+        main_cs_prefetch = new Consumer(main_queue, queue_db_path, process_name ~ "_prefetch", Mode.RW, log);
         main_cs_prefetch.open();
 
         // attempt open [prepareall] queue
-        open_perapareall_queue();
+        open_perapare_batch_queue(true);
         load_systicket();
 
         sock = nn_socket(AF_SP, NN_SUB);
@@ -215,36 +233,9 @@ class VedaModule
 
     abstract void event_of_change(string uri);
 
-    public void prepare_all()
+    public void prepare_batch()
     {
-        long  total_count    = context.get_inividuals_storage_r().count_entries();
-        long  count_prepared = 0;
-
-        long  count;
-        Queue queue = new Queue(queue_db_path, prepareall_queue_name, Mode.RW, log);
-
-        if (queue.open(Mode.RW) != true)
-        {
-            log.trace("fail on create queue [%s]", prepareall_queue_name);
-            return;
-        }
-
-        bool add_to_queue(string key, string value)
-        {
-            queue.push(key);
-            count++;
-            return true;
-        }
-
-        log.trace_console("start prepare_all");
-        context.freeze();
-        log.trace_console("start create queue");
-        context.get_inividuals_storage_r().get_of_cursor(&add_to_queue, false);
-        log.trace_console("end create queue, count: %d", queue.count_pushed);
-        queue.close();
-        context.unfreeze();
-
-        open_perapareall_queue();
+        open_perapare_batch_queue(false);
     }
 
     private void configuration_found_in_queue()
@@ -297,11 +288,18 @@ class VedaModule
         main_cs_prefetch.sync();
     }
 
+    /+private int priority(string user_uri)
+       {
+        stderr.writefln("basic user uri %s", user_uri);
+        return 0;
+       }+/
+
     private void prepare_queue(string msg)
     {
         main_queue.close();
         main_queue.open();
 
+        int i = 0;
         while (true)
         {
             if (f_listen_exit == true)
@@ -309,20 +307,26 @@ class VedaModule
 
             configuration_found_in_queue();
 
-            string data = main_cs.pop();
+            string data = main_cs[ i ].pop();
+
+            if (data is null && (i + 1 < main_cs.length))
+            {
+                i++;
+                continue;
+            }
 
             if (data is null)
             {
-                if (prepareall_cs !is null)
+                if (prepare_batch_cs !is null)
                 {
-                	// prepareall_cs, обход по очереди всех индивидов 
-                    data = prepareall_cs.pop();
+                    // prepare_batch_cs, обход по очереди всех индивидов
+                    data = prepare_batch_cs.pop();
                     if (data is null)
                     {
-                        log.trace("[%s] queue is empty, remove it.", prepareall_queue_name);
-                        prepareall_cs.remove();
-                        prepareall_queue.remove();
-                        prepareall_cs = null;
+                        log.trace("batch queue is empty, remove it.");
+                        prepare_batch_cs.remove();
+                        //prepare_batch_queue.remove();
+                        prepare_batch_cs = null;
                         break;
                     }
 
@@ -345,8 +349,12 @@ class VedaModule
                     }
 
                     if (rc != ResultCode.Connect_Error)
-                        prepareall_cs.commit_and_next(true);
+                        prepare_batch_cs.commit_and_next(true);
 
+                    main_queue.close();
+                    main_queue.open();
+
+                    i = 0;
                     continue;
                 }
                 else
@@ -360,16 +368,25 @@ class VedaModule
             Individual imm;
             if (data !is null && imm.deserialize(data) < 0)
             {
+                i = 0;
                 log.trace("ERR! invalid individual:[%s]", data);
                 continue;
             }
 
-            string  new_bin  = imm.getFirstLiteral("new_state");
-            string  prev_bin = imm.getFirstLiteral("prev_state");
-            string  user_uri = imm.getFirstLiteral("user_uri");
-            string  event_id = imm.getFirstLiteral("event_id");
-            long  transaction_id = imm.getFirstInteger("tnx_id");
-            INDV_OP cmd      = cast(INDV_OP)imm.getFirstInteger("cmd");
+            string new_bin        = imm.getFirstLiteral("new_state");
+            string prev_bin       = imm.getFirstLiteral("prev_state");
+            string user_uri       = imm.getFirstLiteral("user_uri");
+            string event_id       = imm.getFirstLiteral("event_id");
+            long   transaction_id = imm.getFirstInteger("tnx_id");
+
+            if (priority(user_uri) != i)
+            {
+                main_cs[ i ].commit_and_next(true);
+                i = 0;
+                continue;
+            }
+
+            INDV_OP cmd = cast(INDV_OP)imm.getFirstInteger("cmd");
             op_id = imm.getFirstInteger("op_id");
 
             Individual prev_indv, new_indv;
@@ -403,7 +420,7 @@ class VedaModule
 
                 if (res == ResultCode.OK)
                 {
-                    main_cs.commit_and_next(true);
+                    main_cs[ i ].commit_and_next(true);
                     module_info.put_info(op_id, committed_op_id);
                 }
                 else if (res == ResultCode.Connect_Error || res == ResultCode.Internal_Server_Error || res == ResultCode.Not_Ready ||
@@ -414,10 +431,11 @@ class VedaModule
                 }
                 else
                 {
-                    main_cs.commit_and_next(true);
+                    main_cs[ i ].commit_and_next(true);
                     module_info.put_info(op_id, committed_op_id);
                     log.trace("ERR! message fail prepared (res=%s), skip.  count=%d", text(res), count_success_prepared);
                 }
+                i = 0;
             }
             catch (Throwable ex)
             {
@@ -433,8 +451,8 @@ class VedaModule
             //    GC.collect();
             //}
         }
-        if (count_readed != count_success_prepared)
-            log.trace("WARN! : readed=%d, success_prepared=%d", count_readed, count_success_prepared);
+        //if (count_readed != count_success_prepared)
+        //    log.trace("WARN! : readed=%d, success_prepared=%d", count_readed, count_success_prepared);
     }
 
     void load_systicket()

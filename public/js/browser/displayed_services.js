@@ -8,11 +8,11 @@ veda.Module(function DisplayedServices(veda) { "use strict";
 
   // Autoupdate displayed individuals that were changed on server
 
-  var updateService = new veda.UpdateService();
-
   veda.on("started", function () {
+    var updateService = new veda.UpdateService();
     updateService.start();
   }).on("logout", function () {
+    var updateService = new veda.UpdateService();
     updateService.stop();
   });
 
@@ -24,6 +24,7 @@ veda.Module(function DisplayedServices(veda) { "use strict";
 
   function subscribeDisplayed(template) {
     var individual = this;
+    var updateService = new veda.UpdateService();
     updateService.subscribe(individual.id);
 
     template.one("remove", function () {
@@ -32,7 +33,7 @@ veda.Module(function DisplayedServices(veda) { "use strict";
   }
 
   // Re-read strings in individuals on language switch
-  /*
+
   veda.on("individual:loaded", languageWatch);
 
   function languageWatch(individual) {
@@ -40,7 +41,7 @@ veda.Module(function DisplayedServices(veda) { "use strict";
   }
 
   function localizeDisplayed(template) {
-    var self = this;
+    var individual = this;
 
     veda.on("language:changed", localizeIndividual);
     template.one("remove", function () {
@@ -48,16 +49,13 @@ veda.Module(function DisplayedServices(veda) { "use strict";
     });
 
     function localizeIndividual () {
-      for (var property_uri in self.properties) {
-        if (property_uri === "@" || property_uri === "rdf:type") { continue; }
-        var property = new veda.IndividualModel(property_uri),
-            range = property.hasValue("rdfs:range") ?  property["rdfs:range"][0].id : undefined;
-        if (range === "xsd:string" || range === "rdfs:Literal" || range === "rdfs:Resource") {
-          self.trigger("propertyModified", property_uri, self[property_uri]);
-          self.trigger(property_uri, self[property_uri]);
+      for (var property_uri in individual.properties) {
+        if (property_uri === "@") { continue; }
+        if ( individual.hasValue(property_uri) && individual.properties[property_uri][0].type === "String" ) {
+          individual.trigger("propertyModified", property_uri, individual.get(property_uri));
+          individual.trigger(property_uri, individual.get(property_uri));
         }
       }
     }
   }
-  */
 });
